@@ -3,7 +3,7 @@ title: Fastapi T5
 emoji: 🐢
 colorFrom: purple
 colorTo: blue
-sdk: static
+sdk: docker
 pinned: false
 ---
 
