@@ -26,12 +26,12 @@ a {
 }
 
 form {
-  width: 25rem;
+  width: 30rem;
   margin: 0 auto;
 }
 
 input {
-  width: 70%;
+  width: 100%;
 }
 
 button {
