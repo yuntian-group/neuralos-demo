@@ -51,6 +51,22 @@
         // Initial connection
         connect();
 
+        let lastSentPosition = null;
+        let lastSentTime = 0;
+        const SEND_INTERVAL = 50; // Send updates every 50ms
+
+        function sendMousePosition(x, y, forceUpdate = false) {
+            const currentTime = Date.now();
+            if (forceUpdate || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL) {
+                socket.send(JSON.stringify({
+                    "action_type": "move",
+                    "mouse_position": [x, y]
+                }));
+                lastSentPosition = { x, y };
+                lastSentTime = currentTime;
+            }
+        }
+
         // Capture mouse movements and clicks
         canvas.addEventListener("mousemove", function (event) {
             if (!isConnected) return;
@@ -58,10 +74,13 @@
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
             
-            socket.send(JSON.stringify({
-                "action_type": "move",
-                "mouse_position": [x, y]
-            }));
+            // Client-side prediction
+            ctx.beginPath();
+            ctx.moveTo(lastSentPosition ? lastSentPosition.x : x, lastSentPosition ? lastSentPosition.y : y);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            sendMousePosition(x, y);
         });
 
         canvas.addEventListener("click", function (event) {
@@ -69,6 +88,8 @@
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
+
+            sendMousePosition(x, y, true);
 
             socket.send(JSON.stringify({
                 "action_type": "left_click",
