@@ -39,7 +39,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
     return np.array(pil_image)
 
 # Initialize the model at the start of your application
-initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
 
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 256, 256
