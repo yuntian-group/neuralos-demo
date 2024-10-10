@@ -51,8 +51,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         image_sequence.insert(0, np.zeros((height, width, 3), dtype=np.uint8))
     
     # Convert the image sequence to a tensor and concatenate in the channel dimension
-    image_sequence_tensor = torch.from_numpy(np.concatenate(image_sequence, axis=2)).float() / 127.5 - 1
-    image_sequence_tensor = image_sequence_tensor.permute(2, 0, 1).unsqueeze(0).to(device)
+    image_sequence_tensor = torch.from_numpy(np.stack(image_sequence)).float() / 127.5 - 1
+    image_sequence_tensor = image_sequence_tensor.to(device)
     
     
     # Prepare the prompt based on the previous actions
