@@ -4,4 +4,4 @@ sentencepiece==0.1.*
 torch==1.11.*
 transformers==4.*
 uvicorn[standard]==0.17.*
-
+Pillow
