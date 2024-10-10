@@ -12,10 +12,48 @@
         const canvas = document.getElementById('displayCanvas');
         const ctx = canvas.getContext('2d');
         
-        let socket = new WebSocket(`wss://${window.location.host}/ws`);
+        let socket;
+        let isConnected = false;
+
+        function connect() {
+            socket = new WebSocket(`wss://${window.location.host}/ws`);
+
+            socket.onopen = function(event) {
+                console.log("WebSocket connection established");
+                isConnected = true;
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed. Attempting to reconnect...");
+                isConnected = false;
+                setTimeout(connect, 3000); // Attempt to reconnect after 3 seconds
+            };
+
+            socket.onerror = function(error) {
+                console.error("WebSocket error:", error);
+            };
+
+            // Receive predicted frames and render them on the canvas
+            socket.onmessage = function (event) {
+                // Parse the received JSON data
+                const data = JSON.parse(event.data);
+                if (data.image) {
+                    // Create an image object from the base64 encoded string
+                    const img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = 'data:image/png;base64,' + data.image;
+                }
+            };
+        }
+
+        // Initial connection
+        connect();
 
         // Capture mouse movements and clicks
         canvas.addEventListener("mousemove", function (event) {
+            if (!isConnected) return;
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
@@ -27,6 +65,7 @@
         });
 
         canvas.addEventListener("click", function (event) {
+            if (!isConnected) return;
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
@@ -36,12 +75,6 @@
                 "mouse_position": [x, y]
             }));
         });
-
-        // Receive predicted frames and render them on the canvas
-        socket.onmessage = function (event) {
-            ctx.fillStyle = "black";  // Placeholder rendering
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        };
     </script>
 </body>
 </html>
