@@ -59,15 +59,22 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #action_descriptions = [f"{pos[0]}:{pos[1]}" for _, pos in previous_actions[-7:]]
     #prompt = " ".join(action_descriptions)
     action_descriptions = []
+    def norm_x(x):
+        return x + (1920 - 256) / 2
+    def norm_y(y):
+        return y + (1080 - 256) / 2
     for action_type, pos in previous_actions[-7:]:
         if action_type == "move":
-            action_descriptions.append(f"{pos[0]}:{pos[1]}")
+            print (pos[0], pos[1])
+            action_descriptions.append(f"{norm_x(pos[0])}:{norm_y(pos[1])}")
+            
         elif action_type == "left_click":
             action_descriptions.append("left_click")
         elif action_type == "right_click":
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions)
+    print (prompt)
     
     # Generate the next frame
     new_frame = sample_frame(model, prompt, image_sequence_tensor)
