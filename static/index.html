@@ -17,6 +17,8 @@
         let reconnectAttempts = 0;
         const MAX_RECONNECT_DELAY = 30000; // Maximum delay between reconnection attempts (30 seconds)
 
+        let isProcessing = false;
+
         function connect() {
             socket = new WebSocket(`wss://${window.location.host}/ws`);
 
@@ -46,6 +48,7 @@
                     const img = new Image();
                     img.onload = function() {
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        isProcessing = false; // Allow new inputs after drawing the image
                     };
                     img.src = 'data:image/png;base64,' + data.image;
                 }
@@ -77,7 +80,8 @@
 
         function sendMousePosition(x, y, forceUpdate = false) {
             const currentTime = Date.now();
-            if (isConnected && (forceUpdate || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
+            if (isConnected && !isProcessing && (forceUpdate || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
+                isProcessing = true;
                 socket.send(JSON.stringify({
                     "action_type": "move",
                     "mouse_position": [x, y]
@@ -104,13 +108,12 @@
         });
 
         canvas.addEventListener("click", function (event) {
-            if (!isConnected) return;
+            if (!isConnected || isProcessing) return;
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
 
-            sendMousePosition(x, y, true);
-
+            isProcessing = true;
             socket.send(JSON.stringify({
                 "action_type": "left_click",
                 "mouse_position": [x, y]
