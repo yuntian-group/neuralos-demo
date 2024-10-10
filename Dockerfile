@@ -1,5 +1,5 @@
 # Use the official Python 3.9 image
-FROM python:3.9
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
 
 # Set the working directory to /code
 WORKDIR /code
