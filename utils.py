@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download
 import json
-import OS
+import os
 
 def load_model_from_config(config_path, model_name, device='cuda'):
     # Load the config file
