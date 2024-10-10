@@ -56,7 +56,17 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     
     # Prepare the prompt based on the previous actions
-    action_descriptions = [f"{pos[0]}:{pos[1]}" for _, pos in previous_actions[-7:]]
+    #action_descriptions = [f"{pos[0]}:{pos[1]}" for _, pos in previous_actions[-7:]]
+    #prompt = " ".join(action_descriptions)
+    action_descriptions = []
+    for action_type, pos in previous_actions[-7:]:
+        if action_type == "move":
+            action_descriptions.append(f"{pos[0]}:{pos[1]}")
+        elif action_type == "left_click":
+            action_descriptions.append("left_click")
+        elif action_type == "right_click":
+            action_descriptions.append("right_click")
+    
     prompt = " ".join(action_descriptions)
     
     # Generate the next frame
