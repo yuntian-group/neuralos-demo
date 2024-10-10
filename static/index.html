@@ -12,7 +12,7 @@
         const canvas = document.getElementById('displayCanvas');
         const ctx = canvas.getContext('2d');
         
-        let socket = new WebSocket("ws://localhost:8000/ws");
+        let socket = new WebSocket("ws://localhost:7860/ws");
 
         // Capture mouse movements and clicks
         canvas.addEventListener("mousemove", function (event) {
