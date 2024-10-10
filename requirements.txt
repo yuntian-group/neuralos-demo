@@ -2,7 +2,7 @@ fastapi
 requests
 sentencepiece
 torch
-transformers==4.3.1
+transformers
 uvicorn[standard]
 Pillow
 huggingface_hub
