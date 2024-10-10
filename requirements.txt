@@ -1,7 +1,7 @@
 fastapi
 requests
 sentencepiece
-pytorch=1.7.0
+pytorch==1.7.0
 transformers==4.3.1
 uvicorn[standard]
 Pillow
@@ -9,8 +9,8 @@ huggingface_hub
 omegaconf==2.1.1
 einops==0.3.0
 pytorch-lightning==1.4.2
-torchvision=0.8.1
-numpy=1.19.2
+torchvision==0.8.1
+numpy==1.19.2
 albumentations
 opencv-python
 pudb
