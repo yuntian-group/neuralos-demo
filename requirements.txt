@@ -8,7 +8,7 @@ Pillow
 huggingface_hub
 omegaconf
 einops
-pytorch-lightning
+pytorch-lightning==1.4.2
 torchvision
 numpy
 albumentations
