@@ -10,6 +10,7 @@ import asyncio
 from utils import initialize_model, sample_frame
 import torch
 import os
+import time
 
 app = FastAPI()
 
@@ -106,7 +107,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             norm_x = x + (1920 - 256) / 2
             norm_y = y + (1080 - 256) / 2
-            action_descriptions.append(f"{norm_x}:{norm_y}")
+            action_descriptions.append(f"{norm_x:.0f}:{norm_y:.0f}")
         elif action_type == "left_click":
             action_descriptions.append("left_click")
         elif action_type == "right_click":
@@ -153,6 +154,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Store the actions
                 previous_actions.append((action_type, mouse_position))
                 
+                # Log the start time
+                start_time = time.time()
+                
                 # Predict the next frame based on the previous frames and actions
                 next_frame = predict_next_frame(previous_frames, previous_actions)
                 previous_frames.append(next_frame)
@@ -162,6 +166,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
+                
+                # Log the processing time
+                processing_time = time.time() - start_time
+                print(f"Frame processing time: {processing_time:.2f} seconds")
                 
                 # Send the generated frame back to the client
                 await websocket.send_json({"image": img_str})
