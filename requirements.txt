@@ -8,3 +8,4 @@ Pillow
 huggingface_hub
 omegaconf
 einops
+pytorch_lightning
