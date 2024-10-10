@@ -55,8 +55,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     image_sequence_tensor = image_sequence_tensor.unsqueeze(0).to(device)
     
     # Prepare the prompt based on the previous actions
-    action_descriptions = [f"{action} at ({pos[0]}, {pos[1]})" for action, pos in previous_actions[-7:]]
-    prompt = "A sequence of actions: " + ", ".join(action_descriptions)
+    action_descriptions = [f"{pos[0]}:{pos[1]}" for _, pos in previous_actions[-7:]]
+    prompt = " ".join(action_descriptions)
     
     # Generate the next frame
     new_frame = sample_frame(model, prompt, image_sequence_tensor)
