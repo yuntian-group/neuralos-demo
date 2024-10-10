@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw
 import base64
 import io
 import asyncio
+from utils import initialize_model, sample_frame, device
+import torch
 
 app = FastAPI()
 
@@ -36,15 +38,34 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
     
     return np.array(pil_image)
 
+# Initialize the model at the start of your application
+initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
+
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
-    width, height = 800, 600
+    width, height = 256, 256
     
-    if not previous_frames or previous_actions[-1][0] == "move":
-        # Generate a new random image when there's no previous frame or the mouse moves
-        new_frame = generate_random_image(width, height)
-    else:
-        # Use the last frame if it exists and the action is not a mouse move
-        new_frame = previous_frames[-1].copy()
+    # Prepare the image sequence for the model
+    image_sequence = previous_frames[-7:]  # Take the last 7 frames
+    while len(image_sequence) < 7:
+        image_sequence.insert(0, np.zeros((height, width, 3), dtype=np.uint8))
+    
+    # Convert the image sequence to a tensor
+    image_sequence_tensor = torch.from_numpy(np.stack(image_sequence)).permute(0, 3, 1, 2).float() / 127.5 - 1
+    image_sequence_tensor = image_sequence_tensor.unsqueeze(0).to(device)
+    
+    # Prepare the prompt based on the previous actions
+    action_descriptions = [f"{action} at ({pos[0]}, {pos[1]})" for action, pos in previous_actions[-7:]]
+    prompt = "A sequence of actions: " + ", ".join(action_descriptions)
+    
+    # Generate the next frame
+    new_frame = sample_frame(model, prompt, image_sequence_tensor)
+    
+    # Convert the generated frame to the correct format
+    new_frame = (new_frame * 255).astype(np.uint8).transpose(1, 2, 0)
+    
+    # Resize the frame to 256x256 if necessary
+    if new_frame.shape[:2] != (height, width):
+        new_frame = np.array(Image.fromarray(new_frame).resize((width, height)))
     
     # Draw the trace of previous actions
     new_frame_with_trace = draw_trace(new_frame, previous_actions)
