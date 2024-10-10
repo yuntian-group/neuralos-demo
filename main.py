@@ -54,6 +54,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    client_id = id(websocket)  # Use a unique identifier for each connection
+    print(f"New WebSocket connection: {client_id}")
     await websocket.accept()
     previous_frames = []
     previous_actions = []
@@ -63,6 +65,11 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 # Receive user input with a timeout
                 data = await asyncio.wait_for(websocket.receive_json(), timeout=30.0)
+                
+                if data.get("type") == "heartbeat":
+                    await websocket.send_json({"type": "heartbeat_response"})
+                    continue
+                
                 action_type = data.get("action_type")
                 mouse_position = data.get("mouse_position")
                 
@@ -91,8 +98,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
 
     except Exception as e:
-        print(f"Error in WebSocket connection: {e}")
+        print(f"Error in WebSocket connection {client_id}: {e}")
     
     finally:
-        print("WebSocket connection closed")
+        print(f"WebSocket connection closed: {client_id}")
         # Remove the explicit websocket.close() call here
