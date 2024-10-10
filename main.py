@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 import base64
 import io
+import asyncio
 
 app = FastAPI()
 
@@ -59,27 +60,40 @@ async def websocket_endpoint(websocket: WebSocket):
     
     try:
         while True:
-            # Receive user input (mouse movement, click, etc.)
-            data = await websocket.receive_json()
-            action_type = data.get("action_type")
-            mouse_position = data.get("mouse_position")
+            try:
+                # Receive user input with a timeout
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=30.0)
+                action_type = data.get("action_type")
+                mouse_position = data.get("mouse_position")
+                
+                # Store the actions
+                previous_actions.append((action_type, mouse_position))
+                
+                # Predict the next frame based on the previous frames and actions
+                next_frame = predict_next_frame(previous_frames, previous_actions)
+                previous_frames.append(next_frame)
+                
+                # Convert the numpy array to a base64 encoded image
+                img = Image.fromarray(next_frame)
+                buffered = io.BytesIO()
+                img.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode()
+                
+                # Send the generated frame back to the client
+                await websocket.send_json({"image": img_str})
             
-            # Store the actions
-            previous_actions.append((action_type, mouse_position))
+            except asyncio.TimeoutError:
+                print("WebSocket connection timed out")
+                await websocket.close(code=1000)
+                break
             
-            # Predict the next frame based on the previous frames and actions
-            next_frame = predict_next_frame(previous_frames, previous_actions)
-            previous_frames.append(next_frame)
-            
-            # Convert the numpy array to a base64 encoded image
-            img = Image.fromarray(next_frame)
-            buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            
-            # Send the generated frame back to the client
-            await websocket.send_json({"image": img_str})
+            except WebSocketDisconnect:
+                print("WebSocket disconnected")
+                break
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error in WebSocket connection: {e}")
+    
+    finally:
+        print("WebSocket connection closed")
         await websocket.close()
