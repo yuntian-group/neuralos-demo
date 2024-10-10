@@ -8,3 +8,4 @@ Pillow
 huggingface_hub
 omegaconf
 einops
+git+https://github.com/CompVis/latent-diffusion.git
