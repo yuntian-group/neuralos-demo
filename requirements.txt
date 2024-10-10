@@ -9,3 +9,12 @@ huggingface_hub
 omegaconf
 einops
 pytorch-lightning
+torchvision
+numpy
+albumentations
+opencv-python
+pudb
+imageio
+imageio-ffmpeg
+torch-fidelity
+kornia
