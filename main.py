@@ -84,7 +84,6 @@ async def websocket_endpoint(websocket: WebSocket):
             
             except asyncio.TimeoutError:
                 print("WebSocket connection timed out")
-                await websocket.close(code=1000)
                 break
             
             except WebSocketDisconnect:
@@ -96,4 +95,4 @@ async def websocket_endpoint(websocket: WebSocket):
     
     finally:
         print("WebSocket connection closed")
-        await websocket.close()
+        # Remove the explicit websocket.close() call here
