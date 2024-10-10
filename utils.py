@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download
 import json
+import OS
 
 def load_model_from_config(config_path, model_name, device='cuda'):
     # Load the config file
@@ -15,7 +16,7 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     model = instantiate_from_config(config.model)
     
     # Download the model file from Hugging Face
-    model_file = hf_hub_download(repo_id=model_name, filename="model.safetensors")
+    model_file = hf_hub_download(repo_id=model_name, filename="model.safetensors", token=os.getenv('HF_TOKEN'))
     
     print(f"Loading model from {model_name}")
     # Load the state dict
