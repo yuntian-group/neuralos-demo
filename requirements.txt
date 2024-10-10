@@ -9,7 +9,7 @@ huggingface_hub
 omegaconf==2.1.1
 einops==0.3.0
 pytorch-lightning==1.4.2
-torchvision==0.8.1
+torchvision
 numpy==1.19.2
 albumentations
 opencv-python
