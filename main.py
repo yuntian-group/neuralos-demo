@@ -122,7 +122,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #if new_frame.shape[:2] != (height, width):
     #    new_frame = np.array(Image.fromarray(new_frame).resize((width, height)))
 
-    new_frame_denormalized = denormalize_image(new_frame.cpu().numpy(), source_range=(-1, 1))
+    new_frame_denormalized = denormalize_image(new_frame, source_range=(-1, 1))
 
     
     # Draw the trace of previous actions
