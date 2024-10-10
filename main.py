@@ -80,52 +80,48 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Prepare the image sequence for the model
     image_sequence = previous_frames[-7:]  # Take the last 7 frames
     while len(image_sequence) < 7:
-        #image_sequence.insert(0, np.zeros((height, width, 3), dtype=np.uint8))
         image_sequence.insert(0, initial_images[len(image_sequence)])
-
 
     # Convert the image sequence to a tensor and concatenate in the channel dimension
     image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence, target_range=(-1, 1)))
-
-    #image_sequence_tensor = torch.from_numpy(np.stack(image_sequence)).float() / 127.5 - 1
     image_sequence_tensor = image_sequence_tensor.to(device)
     
-    
     # Prepare the prompt based on the previous actions
-    #action_descriptions = [f"{pos[0]}:{pos[1]}" for _, pos in previous_actions[-7:]]
-    #prompt = " ".join(action_descriptions)
     action_descriptions = []
-    def norm_x(x):
-        return x + (1920 - 256) / 2
-    def norm_y(y):
-        return y + (1080 - 256) / 2
+    initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
+    
+    def unnorm_coords(x, y):
+        return int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
+    
+    # Process initial actions if there are not enough previous actions
+    while len(previous_actions) < 7:
+        if initial_actions:
+            x, y = map(int, initial_actions.pop(0).split(':'))
+            previous_actions.insert(0, ("move", unnorm_coords(x, y)))
+        else:
+            break
+
     for action_type, pos in previous_actions[-7:]:
         if action_type == "move":
-            print (pos[0], pos[1])
-            action_descriptions.append(f"{norm_x(pos[0])}:{norm_y(pos[1])}")
-            
+            x, y = pos
+            norm_x = x + (1920 - 256) / 2
+            norm_y = y + (1080 - 256) / 2
+            action_descriptions.append(f"{norm_x}:{norm_y}")
         elif action_type == "left_click":
             action_descriptions.append("left_click")
         elif action_type == "right_click":
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions)
-    print (prompt)
+    print(prompt)
     
     # Generate the next frame
     new_frame = sample_frame(model, prompt, image_sequence_tensor)
     
     # Convert the generated frame to the correct format
-    #new_frame = (new_frame * 255).astype(np.uint8).transpose(1, 2, 0)
     new_frame = new_frame.transpose(1, 2, 0)
 
-    
-    # Resize the frame to 256x256 if necessary
-    #if new_frame.shape[:2] != (height, width):
-    #    new_frame = np.array(Image.fromarray(new_frame).resize((width, height)))
-
     new_frame_denormalized = denormalize_image(new_frame, source_range=(-1, 1))
-
     
     # Draw the trace of previous actions
     new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions)
