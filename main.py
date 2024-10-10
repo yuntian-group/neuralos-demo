@@ -9,6 +9,7 @@ import io
 import asyncio
 from utils import initialize_model, sample_frame
 import torch
+import os
 
 app = FastAPI()
 
@@ -64,6 +65,14 @@ def normalize_images(images, target_range=(-1, 1)):
     else:
         raise ValueError(f"Unsupported target range: {target_range}")
 
+def denormalize_image(image, source_range=(-1, 1)):
+    if source_range == (-1, 1):
+        return ((image + 1) * 127.5).clip(0, 255).astype(np.uint8)
+    elif source_range == (0, 1):
+        return (image * 255).clip(0, 255).astype(np.uint8)
+    else:
+        raise ValueError(f"Unsupported source range: {source_range}")
+
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 256, 256
     initial_images = load_initial_images(width, height)
@@ -107,14 +116,17 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     new_frame = sample_frame(model, prompt, image_sequence_tensor)
     
     # Convert the generated frame to the correct format
-    new_frame = (new_frame * 255).astype(np.uint8).transpose(1, 2, 0)
+    #new_frame = (new_frame * 255).astype(np.uint8).transpose(1, 2, 0)
     
     # Resize the frame to 256x256 if necessary
-    if new_frame.shape[:2] != (height, width):
-        new_frame = np.array(Image.fromarray(new_frame).resize((width, height)))
+    #if new_frame.shape[:2] != (height, width):
+    #    new_frame = np.array(Image.fromarray(new_frame).resize((width, height)))
+
+    new_frame_denormalized = denormalize_image(new_frame.cpu().numpy(), source_range=(-1, 1))
+
     
     # Draw the trace of previous actions
-    new_frame_with_trace = draw_trace(new_frame, previous_actions)
+    new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions)
     
     return new_frame_with_trace
 
