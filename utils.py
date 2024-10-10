@@ -1,7 +1,7 @@
 import torch
 from omegaconf import OmegaConf
-#from ldm.util import instantiate_from_config
-#from ldm.models.diffusion.ddpm import LatentDiffusion, DDIMSampler
+from ldm.util import instantiate_from_config
+from ldm.models.diffusion.ddpm import LatentDiffusion, DDIMSampler
 import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download
