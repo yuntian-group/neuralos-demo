@@ -10,10 +10,10 @@ COPY ./requirements.txt /code/requirements.txt
 # Install requirements.txt 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-RUN git clone https://github.com/CompVis/latent-diffusion.git
+#RUN git clone https://github.com/da03/latent-diffusion.git
 
 # Install latent-diffusion in editable mode
-RUN pip install -e ./latent-diffusion
+#RUN pip install -e ./latent-diffusion
 
 # Set up a new user named "user" with user ID 1000
 RUN useradd -m -u 1000 user
