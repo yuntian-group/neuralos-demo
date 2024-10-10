@@ -42,16 +42,43 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
 model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
+
+def load_initial_images(width, height):
+    initial_images = []
+    for i in range(7):
+        image_path = f"image_{i}.png"
+        if os.path.exists(image_path):
+            img = Image.open(image_path).resize((width, height))
+            initial_images.append(np.array(img))
+        else:
+            print(f"Warning: {image_path} not found. Using blank image instead.")
+            initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
+    return initial_images
+
+def normalize_images(images, target_range=(-1, 1)):
+    images = np.stack(images).astype(np.float32)
+    if target_range == (-1, 1):
+        return images / 127.5 - 1
+    elif target_range == (0, 1):
+        return images / 255.0
+    else:
+        raise ValueError(f"Unsupported target range: {target_range}")
+
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 256, 256
-    
+    initial_images = load_initial_images(width, height)
+
     # Prepare the image sequence for the model
     image_sequence = previous_frames[-7:]  # Take the last 7 frames
     while len(image_sequence) < 7:
-        image_sequence.insert(0, np.zeros((height, width, 3), dtype=np.uint8))
-    
+        #image_sequence.insert(0, np.zeros((height, width, 3), dtype=np.uint8))
+        image_sequence.insert(0, initial_images[len(image_sequence)])
+
+
     # Convert the image sequence to a tensor and concatenate in the channel dimension
-    image_sequence_tensor = torch.from_numpy(np.stack(image_sequence)).float() / 127.5 - 1
+    image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence, target_range=(-1, 1)))
+
+    #image_sequence_tensor = torch.from_numpy(np.stack(image_sequence)).float() / 127.5 - 1
     image_sequence_tensor = image_sequence_tensor.to(device)
     
     
