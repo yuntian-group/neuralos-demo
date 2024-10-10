@@ -54,10 +54,11 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         return x_samples_ddim.squeeze(0).cpu().numpy()
 
 # Global variables for model and device
-model = None
-device = None
+#model = None
+#device = None
 
 def initialize_model(config_path, model_name):
-    global model, device
+    #global model, device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model_from_config(config_path, model_name, device)
+    return model
