@@ -81,7 +81,7 @@
         function sendMousePosition(x, y, forceUpdate = false) {
             const currentTime = Date.now();
             if (isConnected && !isProcessing && (forceUpdate || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
-                isProcessing = true;
+                //isProcessing = true;
                 socket.send(JSON.stringify({
                     "action_type": "move",
                     "mouse_position": [x, y]
