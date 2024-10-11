@@ -1,5 +1,5 @@
 ---
-title: Fastapi T5
+title: Neural Computer
 emoji: 🐢
 colorFrom: purple
 colorTo: blue
