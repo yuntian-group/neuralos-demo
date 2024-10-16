@@ -107,7 +107,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             norm_x = x + (1920 - 256) / 2
             norm_y = y + (1080 - 256) / 2
-            action_descriptions.append(f"{norm_x:.0f}:{norm_y:.0f}")
+            action_descriptions.append(f"{norm_x:.0f}~{norm_y:.0f}")
         elif action_type == "left_click":
             action_descriptions.append("left_click")
         elif action_type == "right_click":
