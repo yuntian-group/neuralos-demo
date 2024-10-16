@@ -48,13 +48,14 @@ model = model.to(device)
 def load_initial_images(width, height):
     initial_images = []
     for i in range(7):
-        image_path = f"image_{i}.png"
-        if os.path.exists(image_path):
-            img = Image.open(image_path).resize((width, height))
-            initial_images.append(np.array(img))
-        else:
-            print(f"Warning: {image_path} not found. Using blank image instead.")
-            initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
+        initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
+        #image_path = f"image_{i}.png"
+        #if os.path.exists(image_path):
+        #    img = Image.open(image_path).resize((width, height))
+        #    initial_images.append(np.array(img))
+        #else:
+        #    print(f"Warning: {image_path} not found. Using blank image instead.")
+        #    initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
     return initial_images
 
 def normalize_images(images, target_range=(-1, 1)):
@@ -90,7 +91,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Prepare the prompt based on the previous actions
     action_descriptions = []
     initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
-    
+    initial_actions = ['700:897'] * 7
     def unnorm_coords(x, y):
         return int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
