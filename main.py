@@ -91,7 +91,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Prepare the prompt based on the previous actions
     action_descriptions = []
     initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
-    initial_actions = ['700:897'] * 7
+    initial_actions = ['0:0'] * 7
     def unnorm_coords(x, y):
         return int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
