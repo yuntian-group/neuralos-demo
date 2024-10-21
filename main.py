@@ -93,7 +93,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
     initial_actions = ['0:0'] * 7
     def unnorm_coords(x, y):
-        return int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
+        return int(x), int(y) #int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
     # Process initial actions if there are not enough previous actions
     while len(previous_actions) < 7:
@@ -106,8 +106,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     for action_type, pos in previous_actions[-7:]:
         if action_type == "move":
             x, y = pos
-            norm_x = x + (1920 - 256) / 2
-            norm_y = y + (1080 - 256) / 2
+            norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
+            norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
             action_descriptions.append(f"{norm_x:.0f}~{norm_y:.0f}")
         elif action_type == "left_click":
             action_descriptions.append("left_click")
