@@ -138,7 +138,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     previous_frames = []
     previous_actions = []
-    
+    positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346']
     try:
         while True:
             try:
@@ -153,6 +153,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 mouse_position = data.get("mouse_position")
                 
                 # Store the actions
+                position = positions[0]
+                positions = positions[1:]
+                mouse_position = position.split('~')
+                mouse_position = [int(item) for item in mouse_position]
                 previous_actions.append((action_type, mouse_position))
                 
                 # Log the start time
