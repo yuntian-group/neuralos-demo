@@ -106,6 +106,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
+            norm_x = x
+            norm_y = y
             action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
             prev_x = norm_x
             prev_y = norm_y
