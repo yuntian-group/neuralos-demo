@@ -102,13 +102,16 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             previous_actions.insert(0, ("move", unnorm_coords(x, y)))
         else:
             break
-
+    prev_x = 0
+    prev_y = 0
     for action_type, pos in previous_actions[-7:]:
         if action_type == "move":
             x, y = pos
             norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
-            action_descriptions.append(f"{norm_x:.0f}~{norm_y:.0f}")
+            action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
+            prev_x = norm_x
+            prev_y = norm_y
         elif action_type == "left_click":
             action_descriptions.append("left_click")
         elif action_type == "right_click":
