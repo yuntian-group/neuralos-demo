@@ -96,7 +96,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         return int(x), int(y) #int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
     # Process initial actions if there are not enough previous actions
-    while len(previous_actions) < 7:
+    while len(previous_actions) < 8:
         if initial_actions:
             x, y = map(int, initial_actions.pop(0).split(':'))
             previous_actions.insert(0, ("move", unnorm_coords(x, y)))
@@ -128,7 +128,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Draw the trace of previous actions
     new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions)
     
-    return new_frame_with_trace
+    return new_frame_with_trace, new_frame_denormalized
 
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
@@ -159,8 +159,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 start_time = time.time()
                 
                 # Predict the next frame based on the previous frames and actions
-                next_frame = predict_next_frame(previous_frames, previous_actions)
-                previous_frames.append(next_frame)
+                next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
+                previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
