@@ -138,7 +138,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     previous_frames = []
     previous_actions = []
-    positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346']
+    positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346', '703~346', '654~347', '604~349', '604~349', '555~353', '509~357', '509~357']
     try:
         while True:
             try:
