@@ -123,7 +123,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Convert the generated frame to the correct format
     new_frame = new_frame.transpose(1, 2, 0)
     print (new_frame.max(), new_frame.min())
-    new_frame_denormalized = denormalize_image(new_frame, source_range=(0, 1))
+    new_frame_denormalized = denormalize_image(new_frame, source_range=(-1, 1))
     
     # Draw the trace of previous actions
     new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions)
