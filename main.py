@@ -97,14 +97,11 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     # Process initial actions if there are not enough previous actions
     while len(previous_actions) < 8:
-        if initial_actions:
-            x, y = map(int, initial_actions.pop(0).split(':'))
-            previous_actions.insert(0, ("move", unnorm_coords(x, y)))
-        else:
-            break
+        x, y = map(int, initial_actions.pop(0).split(':'))
+        previous_actions.insert(0, ("move", unnorm_coords(x, y)))
     prev_x = 0
     prev_y = 0
-    for action_type, pos in previous_actions[-7:]:
+    for action_type, pos in previous_actions: #[-8:]:
         if action_type == "move":
             x, y = pos
             norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
@@ -117,7 +114,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         elif action_type == "right_click":
             action_descriptions.append("right_click")
     
-    prompt = " ".join(action_descriptions)
+    prompt = " ".join(action_descriptions[-8:])
     print(prompt)
     
     # Generate the next frame
