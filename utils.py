@@ -49,7 +49,8 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
                                          eta=0)
         
         x_samples_ddim = model.decode_first_stage(samples_ddim)
-        x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
+        #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
+        x_samples_ddim = torch.clamp(x_samples_ddim, min=-1.0, max=1.0)
         
         return x_samples_ddim.squeeze(0).cpu().numpy()
 
