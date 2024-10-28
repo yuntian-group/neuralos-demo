@@ -106,8 +106,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
-            norm_x = x
-            norm_y = y
+            #norm_x = x
+            #norm_y = y
             action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
             prev_x = norm_x
             prev_y = norm_y
@@ -140,7 +140,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     previous_frames = []
     previous_actions = []
-    positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346', '703~346', '654~347', '604~349', '604~349', '555~353', '509~357', '509~357']
+    #positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346', '703~346', '654~347', '604~349', '604~349', '555~353', '509~357', '509~357']
     try:
         while True:
             try:
@@ -155,10 +155,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 mouse_position = data.get("mouse_position")
                 
                 # Store the actions
-                position = positions[0]
-                positions = positions[1:]
-                mouse_position = position.split('~')
-                mouse_position = [int(item) for item in mouse_position]
+                #position = positions[0]
+                #positions = positions[1:]
+                #mouse_position = position.split('~')
+                #mouse_position = [int(item) for item in mouse_position]
                 previous_actions.append((action_type, mouse_position))
                 
                 # Log the start time
