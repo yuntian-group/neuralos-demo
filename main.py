@@ -33,6 +33,9 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
     for i, (action_type, position) in enumerate(previous_actions):
         color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
         x, y = position
+        if DEBUG:
+            x = x * 256 / 1024
+            y = 6 * 256 / 1024
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
         if i > 0:
