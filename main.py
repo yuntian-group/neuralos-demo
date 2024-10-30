@@ -197,11 +197,11 @@ async def websocket_endpoint(websocket: WebSocket):
             
             except asyncio.TimeoutError:
                 print("WebSocket connection timed out")
-                break
+                #break
             
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
-                break
+                #break
 
     except Exception as e:
         print(f"Error in WebSocket connection {client_id}: {e}")
