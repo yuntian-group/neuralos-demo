@@ -35,7 +35,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
         x, y = position
         if DEBUG:
             x = x * 256 / 1024
-            y = 6 * 256 / 1024
+            y = y * 256 / 1024
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
         if i > 0:
