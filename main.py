@@ -40,8 +40,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
             flag = False
         if DEBUG:
             x = x * 256 / 1024
-            y = y * 256 / 1024
-            y = 5
+            y = y * 256 / 640
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
         if prev_x is not None:
