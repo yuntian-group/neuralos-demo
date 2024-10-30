@@ -30,6 +30,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
     pil_image = Image.fromarray(image)
     draw = ImageDraw.Draw(pil_image)
     flag = True
+    prev_x, prev_y = None, None
     for i, (action_type, position) in enumerate(previous_actions):
         color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
         x, y = position
@@ -42,7 +43,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
             y = y * 256 / 1024
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
-        if i > 0:
+        if prev_x is not None:
             #prev_x, prev_y = previous_actions[i-1][1]
             draw.line([prev_x, prev_y, x, y], fill=color, width=1)
         prev_x, prev_y = x, y
