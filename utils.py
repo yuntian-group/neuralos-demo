@@ -39,7 +39,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c = model.get_learned_conditioning(c_dict)
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
         
-        samples_ddim, _ = sampler.sample(S=8,
+        samples_ddim, _ = sampler.sample(S=80,
                                          conditioning=c,
                                          batch_size=1,
                                          shape=[3, 64, 64],
