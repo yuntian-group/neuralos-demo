@@ -33,7 +33,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
     for i, (action_type, position) in enumerate(previous_actions):
         color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
         x, y = position
-        if x === 0 and y == 0 and flag:
+        if x == 0 and y == 0 and flag:
             continue
         else:
             flag = False
