@@ -39,8 +39,9 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
         if i > 0:
-            prev_x, prev_y = previous_actions[i-1][1]
+            #prev_x, prev_y = previous_actions[i-1][1]
             draw.line([prev_x, prev_y, x, y], fill=color, width=1)
+        prev_x, prev_y = x, y
     
     return np.array(pil_image)
 
