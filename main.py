@@ -29,10 +29,14 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     pil_image = Image.fromarray(image)
     draw = ImageDraw.Draw(pil_image)
-    
+    flag = True
     for i, (action_type, position) in enumerate(previous_actions):
         color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
         x, y = position
+        if x === 0 and y == 0 and flag:
+            continue
+        else:
+            flag = False
         if DEBUG:
             x = x * 256 / 1024
             y = y * 256 / 1024
