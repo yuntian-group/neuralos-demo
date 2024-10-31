@@ -28,7 +28,7 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
 
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     pil_image = Image.fromarray(image)
-    pil_image = Image.open('image_3.png')    
+    #pil_image = Image.open('image_3.png')    
     draw = ImageDraw.Draw(pil_image)
     flag = True
     prev_x, prev_y = None, None
@@ -154,7 +154,7 @@ async def websocket_endpoint(websocket: WebSocket):
     previous_actions = []
     positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346', '703~346', '654~347', '604~349', '604~349', '555~353', '509~357', '509~357']
     positions = ['815~335', '787~342', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
-    positions = positions[:4]
+    #positions = positions[:4]
     try:
         while True:
             try:
