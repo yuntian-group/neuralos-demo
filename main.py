@@ -28,7 +28,7 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
 
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     pil_image = Image.fromarray(image)
-    pil_img = Image.open('image_3.png')    
+    pil_image = Image.open('image_3.png')    
     draw = ImageDraw.Draw(pil_image)
     flag = True
     prev_x, prev_y = None, None
