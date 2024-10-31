@@ -12,7 +12,7 @@ import torch
 import os
 import time
 
-DEBUG = True
+DEBUG = False
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
