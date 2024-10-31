@@ -152,9 +152,8 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     previous_frames = []
     previous_actions = []
-    positions = ['496~61', '815~335', '815~335', '815~335', '787~342', '749~345', '749~345', '703~346', '703~346', '654~347', '604~349', '604~349', '555~353', '509~357', '509~357']
     positions = ['815~335', '787~342', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
-    #positions = positions[:4]
+    
     try:
         while True:
             try:
@@ -199,15 +198,15 @@ async def websocket_endpoint(websocket: WebSocket):
             
             except asyncio.TimeoutError:
                 print("WebSocket connection timed out")
-                #break
+                break  # Exit the loop on timeout
             
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
-                #break
+                break  # Exit the loop on disconnect
 
     except Exception as e:
         print(f"Error in WebSocket connection {client_id}: {e}")
     
     finally:
         print(f"WebSocket connection closed: {client_id}")
-        # Remove the explicit websocket.close() call here
+        await websocket.close()  # Ensure the WebSocket is closed
