@@ -44,7 +44,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
                                          batch_size=1,
                                          shape=[3, 64, 64],
                                          verbose=False,
-                                         unconditional_guidance_scale=20.0,
+                                         unconditional_guidance_scale=5.0,
                                          unconditional_conditioning=uc,
                                          eta=0)
         
