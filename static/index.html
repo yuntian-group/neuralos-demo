@@ -135,8 +135,8 @@
         window.addEventListener('beforeunload', function (e) {
             if (isConnected) {
                 try {
-                    socket.send(JSON.stringify({ type: "disconnect" }));
-                    socket.close();
+                    //socket.send(JSON.stringify({ type: "disconnect" }));
+                    //socket.close();
                 } catch (error) {
                     console.error("Error during disconnection:", error);
                 }
