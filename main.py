@@ -158,7 +158,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 # Receive user input with a timeout
-                data = await asyncio.wait_for(websocket.receive_json(), timeout=9000.0)
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=90000.0)
                 
                 if data.get("type") == "heartbeat":
                     await websocket.send_json({"type": "heartbeat_response"})
@@ -198,15 +198,15 @@ async def websocket_endpoint(websocket: WebSocket):
             
             except asyncio.TimeoutError:
                 print("WebSocket connection timed out")
-                break  # Exit the loop on timeout
+                #break  # Exit the loop on timeout
             
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
-                break  # Exit the loop on disconnect
+                #break  # Exit the loop on disconnect
 
     except Exception as e:
         print(f"Error in WebSocket connection {client_id}: {e}")
     
     finally:
         print(f"WebSocket connection closed: {client_id}")
-        await websocket.close()  # Ensure the WebSocket is closed
+        #await websocket.close()  # Ensure the WebSocket is closed
