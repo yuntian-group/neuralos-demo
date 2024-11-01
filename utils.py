@@ -7,6 +7,7 @@ from PIL import Image
 from huggingface_hub import hf_hub_download
 import json
 import os
+import time
 
 def load_model_from_config(config_path, model_name, device='cuda'):
     # Load the config file
@@ -39,6 +40,9 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c = model.get_learned_conditioning(c_dict)
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
 
+        print ('sleeping')
+        time.sleep(120)
+        print ('finished sleeping')
         samples_ddim = model.p_sample_loop(cond=c, shape=[1, 3, 64, 64], return_intermediates=False, verbose=True)
         #samples_ddim, _ = sampler.sample(S=999,
         #                                 conditioning=c,
