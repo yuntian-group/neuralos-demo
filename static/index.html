@@ -72,7 +72,7 @@
                         console.error("Error sending heartbeat:", error);
                     }
                 }
-            }, 15000); // Send heartbeat every 15 seconds
+            }, 1000); // Send heartbeat every 15 seconds
         }
 
         // Initial connection
@@ -120,7 +120,7 @@
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
 
-            isProcessing = true;
+            isProcessing = false;
             try {
                 socket.send(JSON.stringify({
                     "action_type": "left_click",
