@@ -39,14 +39,14 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c = model.get_learned_conditioning(c_dict)
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
         
-        samples_ddim, _ = sampler.sample(S=50,
+        samples_ddim, _ = sampler.sample(S=999,
                                          conditioning=c,
                                          batch_size=1,
                                          shape=[3, 64, 64],
-                                         verbose=False,
-                                         unconditional_guidance_scale=5.0,
-                                         unconditional_conditioning=uc,
-                                         eta=0)
+                                         verbose=False, eta=1)
+                                         #unconditional_guidance_scale=5.0,
+                                         #unconditional_conditioning=uc,
+                                         #eta=0)
         
         x_samples_ddim = model.decode_first_stage(samples_ddim)
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
