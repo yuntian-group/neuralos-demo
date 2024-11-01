@@ -68,6 +68,8 @@
                 if (isConnected) {
                     try {
                         socket.send(JSON.stringify({ type: "heartbeat" }));
+                        console.error("finished sending heartbeat:", error);
+
                     } catch (error) {
                         console.error("Error sending heartbeat:", error);
                     }
