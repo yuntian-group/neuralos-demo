@@ -129,7 +129,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions[-8:])
-    prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
+    #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
     print(prompt)
     
     # Generate the next frame
@@ -154,7 +154,7 @@ async def websocket_endpoint(websocket: WebSocket):
     previous_frames = []
     previous_actions = []
     positions = ['815~335', '787~342', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
-    positions = ['815~335', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
+    #positions = ['815~335', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
 
 #positions = positions[:4]
     try:
