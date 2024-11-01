@@ -161,7 +161,9 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 # Receive user input with a timeout
-                data = await asyncio.wait_for(websocket.receive_json(), timeout=90000.0)
+                #data = await asyncio.wait_for(websocket.receive_json(), timeout=90000.0)
+                data = await websocket.receive_json()
+
                 
                 if data.get("type") == "heartbeat":
                     await websocket.send_json({"type": "heartbeat_response"})
