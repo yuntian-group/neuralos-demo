@@ -43,10 +43,10 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
                                          conditioning=c,
                                          batch_size=1,
                                          shape=[3, 64, 64],
-                                         verbose=False,)
-                                         #unconditional_guidance_scale=5.0,
-                                         #unconditional_conditioning=uc,
-                                         #eta=0)
+                                         verbose=False,
+                                         unconditional_guidance_scale=20.0,
+                                         unconditional_conditioning=uc,
+                                         eta=0)
         
         x_samples_ddim = model.decode_first_stage(samples_ddim)
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
