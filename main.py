@@ -138,7 +138,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
                 norm_x = x
                 norm_y = y
             #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
-            action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}'), pos=='0~0')
+            action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}', pos=='0~0'))
             prev_x = norm_x
             prev_y = norm_y
         elif action_type == "left_click":
