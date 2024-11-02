@@ -129,7 +129,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions[-8:])
-    prompt = ''
+    #prompt = ''
     #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
     print(prompt)
     
@@ -176,7 +176,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Store the actions
                 if DEBUG:
                     position = positions[0]
-                    positions = positions[1:]
+                    #positions = positions[1:]
                     mouse_position = position.split('~')
                     mouse_position = [int(item) for item in mouse_position]
                     
@@ -189,7 +189,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 img = Image.open(f"image_{len(previous_frames)%7}.png")
-                previous_frames.append(np.array(img))
+                #previous_frames.append(np.array(img))
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
