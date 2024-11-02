@@ -32,9 +32,9 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
     sampler = DDIMSampler(model)
     
     with torch.no_grad():
-        u_dict = {'c_crossattn': "", 'c_concat': image_sequence}
-        uc = model.get_learned_conditioning(u_dict)
-        uc = model.enc_concat_seq(uc, u_dict, 'c_concat')
+        #u_dict = {'c_crossattn': "", 'c_concat': image_sequence}
+        #uc = model.get_learned_conditioning(u_dict)
+        #uc = model.enc_concat_seq(uc, u_dict, 'c_concat')
         
         c_dict = {'c_crossattn': prompt, 'c_concat': image_sequence}
         c = model.get_learned_conditioning(c_dict)
