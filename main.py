@@ -200,7 +200,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
                     
                 #previous_actions.append((action_type, mouse_position))
-                previous_actions = [(action_type, mouse_position))]
+                previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
