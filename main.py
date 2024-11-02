@@ -85,7 +85,23 @@ def denormalize_image(image, source_range=(-1, 1)):
         return (image * 255).clip(0, 255).astype(np.uint8)
     else:
         raise ValueError(f"Unsupported source range: {source_range}")
-
+        
+def format_action(action_str, is_padding=False):
+    if is_padding:
+        return "N N N N N : N N N N N"
+    
+    # Split the x~y coordinates
+    x, y = map(int, action_str.split('~'))
+    
+    # Convert numbers to padded strings and add spaces between digits
+    x_str = f"{abs(x):04d}"
+    y_str = f"{abs(y):04d}"
+    x_spaced = ' '.join(x_str)
+    y_spaced = ' '.join(y_str)
+    
+    # Format with sign and proper spacing
+    return f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
+    
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 256, 256
     initial_images = load_initial_images(width, height)
@@ -103,7 +119,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     action_descriptions = []
     initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
     initial_actions = ['0:0'] * 7
-    initial_actions = ['N N N N N : N N N N N'] * 7
+    #initial_actions = ['N N N N N : N N N N N'] * 7
     def unnorm_coords(x, y):
         return int(x), int(y) #int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
@@ -121,7 +137,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             if DEBUG:
                 norm_x = x
                 norm_y = y
-            action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
+            #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
+            action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}'), pos=='0~0')
             prev_x = norm_x
             prev_y = norm_y
         elif action_type == "left_click":
@@ -180,7 +197,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     #positions = positions[1:]
                     mouse_position = position.split('~')
                     mouse_position = [int(item) for item in mouse_position]
-                    mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
+                    #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
                     
                 #previous_actions.append((action_type, mouse_position))
                 previous_actions = [(action_type, mouse_position))]
