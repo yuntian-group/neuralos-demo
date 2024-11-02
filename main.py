@@ -103,6 +103,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     action_descriptions = []
     initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
     initial_actions = ['0:0'] * 7
+    initial_actions = ['N N N N N : N N N N N'] * 7
     def unnorm_coords(x, y):
         return int(x), int(y) #int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
@@ -179,8 +180,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     #positions = positions[1:]
                     mouse_position = position.split('~')
                     mouse_position = [int(item) for item in mouse_position]
+                    mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
                     
-                previous_actions.append((action_type, mouse_position))
+                #previous_actions.append((action_type, mouse_position))
+                previous_actions = [(action_type, mouse_position))]
                 
                 # Log the start time
                 start_time = time.time()
