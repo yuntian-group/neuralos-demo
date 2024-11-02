@@ -36,7 +36,7 @@ model:
         num_head_channels: 32
         use_spatial_transformer: true
         transformer_depth: 1
-        context_dim: 640
+        context_dim: 768
     first_stage_config:
       target: ldm.models.autoencoder.VQModelInterface
       params:
@@ -62,10 +62,10 @@ model:
           target: torch.nn.Identity
 
     cond_stage_config:
-      target: ldm.modules.encoders.modules.BERTEmbedder
+      target: ldm.modules.encoders.modules.GPTEmbedder
       params:
-        n_embed: 640
-        n_layer: 32
+        n_embed: 768
+        n_layer: 12
 
 data:
   target: data.datasets.CsllmTrainSeq
