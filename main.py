@@ -186,7 +186,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Predict the next frame based on the previous frames and actions
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
-                previous_frames.append(next_frame_append)
+                # Load and append the corresponding ground truth image instead of model output
+                img = Image.open(f"image_{len(previous_frames)%7}.png")
+                previous_frames.append(np.array(img))
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
