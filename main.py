@@ -53,7 +53,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
 
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
-model = initialize_model("configs/config_identity.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_identity.yaml", "yuntian-deng/computer-model")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
