@@ -9,7 +9,7 @@ model:
     timesteps: 1000
     first_stage_key: image
     cond_stage_key: action_
-    scheduler_sampling_rate: 0.0
+    #scheduler_sampling_rate: 0.0
     hybrid_key: c_concat
     image_size: 256
     channels: 3
