@@ -28,7 +28,7 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     model.eval()
     return model
 
-def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor):
+def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor, pos_map=None):
     sampler = DDIMSampler(model)
     
     with torch.no_grad():
@@ -39,6 +39,9 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c_dict = {'c_crossattn': prompt, 'c_concat': image_sequence}
         c = model.get_learned_conditioning(c_dict)
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
+        if pos_map is not None:
+            print (pos_map.shape, c['c_concat'].shape)
+            c['c_concat'] = torch.cat([c['c_concat'], pos_map.to(c['c_concat'].device)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
