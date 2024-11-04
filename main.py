@@ -67,7 +67,7 @@ def create_position_map(pos, image_size=64, original_width=1024, original_height
     pos_map = torch.zeros((1, image_size, image_size))
     pos_map[0, y_scaled, x_scaled] = 1.0
     
-    return pos_map
+    return pos_map, x_scaled, y_scaled
     
 # Serve the index.html file at the root URL
 @app.get("/")
@@ -77,7 +77,7 @@ async def get():
 def generate_random_image(width: int, height: int) -> np.ndarray:
     return np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
 
-def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
+def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]], x_scaled=-1, y_scaled=-1) -> np.ndarray:
     pil_image = Image.fromarray(image)
     #pil_image = Image.open('image_3.png')    
     draw = ImageDraw.Draw(pil_image)
@@ -95,10 +95,12 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]])
             y = y * 256 / 640
         draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
+        
         if prev_x is not None:
             #prev_x, prev_y = previous_actions[i-1][1]
             draw.line([prev_x, prev_y, x, y], fill=color, width=1)
         prev_x, prev_y = x, y
+    draw.ellipse([x_scaled*4-2, y_scaled*4-2, x_scaled*4+2, y_scaled*4+2], fill=(0, 255, 0))
     
     return np.array(pil_image)
 
@@ -204,7 +206,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     prompt = " ".join(action_descriptions[-8:])
     
-    pos_map = create_position_map(parse_action_string(action_descriptions[-1]))
+    pos_map, x_scaled, y_scaled = create_position_map(parse_action_string(action_descriptions[-1]))
     
     
     #prompt = ''
@@ -220,7 +222,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     new_frame_denormalized = denormalize_image(new_frame, source_range=(-1, 1))
     
     # Draw the trace of previous actions
-    new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions)
+    new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions, x_scaled, y_scaled)
     
     return new_frame_with_trace, new_frame_denormalized
 
