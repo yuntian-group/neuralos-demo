@@ -41,7 +41,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
         if pos_map is not None:
             print (pos_map.shape, c['c_concat'].shape)
-            c['c_concat'] = torch.cat([c['c_concat'], pos_map.to(c['c_concat'].device)], dim=1)
+            c['c_concat'] = torch.cat([c['c_concat'], pos_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
