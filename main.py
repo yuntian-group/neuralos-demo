@@ -79,12 +79,13 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
 
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]], x_scaled=-1, y_scaled=-1) -> np.ndarray:
     pil_image = Image.fromarray(image)
+    pil_image = pil_image.convert("RGBA")
     #pil_image = Image.open('image_3.png')    
     draw = ImageDraw.Draw(pil_image)
     flag = True
     prev_x, prev_y = None, None
     for i, (action_type, position) in enumerate(previous_actions):
-        color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
+        color = (255, 0, 0, 255) if action_type == "move" else (0, 255, 0, 255)
         x, y = position
         if x == 0 and y == 0 and flag:
             continue
@@ -100,7 +101,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
             #prev_x, prev_y = previous_actions[i-1][1]
             draw.line([prev_x, prev_y, x, y], fill=color, width=1)
         prev_x, prev_y = x, y
-    draw.ellipse([x_scaled*4-2, y_scaled*4-2, x_scaled*4+2, y_scaled*4+2], fill=(0, 255, 0))
+    draw.ellipse([x_scaled*4-2, y_scaled*4-2, x_scaled*4+2, y_scaled*4+2], fill=(0, 255, 0, 255))
     
     return np.array(pil_image)
 
