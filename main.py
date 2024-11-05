@@ -42,7 +42,7 @@ def parse_action_string(action_str):
     
     return (x, y)
 
-def create_position_map(pos, image_size=64, original_width=1024, original_height=640):
+def create_position_map(pos, image_size=256, original_width=1024, original_height=640):
     """Convert cursor position to a binary position map
     Args:
         x, y: Original cursor positions
@@ -107,7 +107,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
 
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
-model = initialize_model("2e5_debug_gpt_firstframe_posmap_debugidentity.yaml", "yuntian-deng/computer-model")
+model = initialize_model("2e5_debug_gpt_firstframe_posmap_debugidentity_256.yaml", "yuntian-deng/computer-model")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
