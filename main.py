@@ -239,6 +239,7 @@ async def websocket_endpoint(websocket: WebSocket):
     #positions = ['815~335', '787~342', '749~345', '703~346', '703~346', '654~347', '654~347', '604~349', '555~353', '555~353', '509~357', '509~357', '468~362', '431~368', '431~368']
     positions = ['307~375']
     #positions = ['815~335']
+    positions = ['787~342']
 #positions = positions[:4]
     try:
         while True:
