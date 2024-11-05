@@ -57,7 +57,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #                                 eta=0)
         
         #x_samples_ddim = model.decode_first_stage(samples_ddim)
-        x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3)
+        x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3, -1, -1)
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
         x_samples_ddim = torch.clamp(x_samples_ddim, min=-1.0, max=1.0)
         
