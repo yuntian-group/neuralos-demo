@@ -41,12 +41,12 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
         if pos_map is not None:
             print (pos_map.shape, c['c_concat'].shape)
-            c['c_concat'] = torch.cat([c['c_concat'][:, :, :64, :64], pos_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
+            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
         print ('finished sleeping')
-        samples_ddim = model.p_sample_loop(cond=c, shape=[1, 3, 64, 64], return_intermediates=False, verbose=True)
+        samples_ddim = model.p_sample_loop(cond=c, shape=[1, 3, 256, 256], return_intermediates=False, verbose=True)
         #samples_ddim, _ = sampler.sample(S=999,
         #                                 conditioning=c,
         #                                 batch_size=1,
