@@ -46,7 +46,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         print ('sleeping')
         #time.sleep(120)
         print ('finished sleeping')
-        samples_ddim = model.p_sample_loop(cond=c, shape=[1, 3, 64, 64], return_intermediates=False, verbose=True)
+        #samples_ddim = model.p_sample_loop(cond=c, shape=[1, 3, 64, 64], return_intermediates=False, verbose=True)
         #samples_ddim, _ = sampler.sample(S=999,
         #                                 conditioning=c,
         #                                 batch_size=1,
@@ -56,8 +56,8 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #                                 unconditional_conditioning=uc,
         #                                 eta=0)
         
-        x_samples_ddim = model.decode_first_stage(samples_ddim)
-        #x_samples_ddim = samples_ddim
+        #x_samples_ddim = model.decode_first_stage(samples_ddim)
+        x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3)
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
         x_samples_ddim = torch.clamp(x_samples_ddim, min=-1.0, max=1.0)
         
