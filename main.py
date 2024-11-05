@@ -102,6 +102,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
             draw.line([prev_x, prev_y, x, y], fill=color, width=1)
         prev_x, prev_y = x, y
     draw.ellipse([x_scaled*4-2, y_scaled*4-2, x_scaled*4+2, y_scaled*4+2], fill=(0, 255, 0, 255))
+    pil_image = pil_image.convert("RGB")
     
     return np.array(pil_image)
 
