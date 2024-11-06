@@ -22,7 +22,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 256
-        in_channels: 25
+        in_channels: 24
         out_channels: 3
         model_channels: 192
         attention_resolutions:
