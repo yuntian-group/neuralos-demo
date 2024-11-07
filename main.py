@@ -53,6 +53,7 @@ def create_position_map(pos, image_size=256, original_width=1024, original_heigh
         torch.Tensor: Binary position map of shape (1, image_size, image_size)
     """
     x, y = pos
+    x, y = 307, 375
     if x is None:
         return torch.zeros((1, image_size, image_size))
     # Scale the positions to new size
@@ -206,7 +207,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions[-8:])
-    prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
+    #prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
     
     pos_map, x_scaled, y_scaled = create_position_map(parse_action_string(action_descriptions[-1]))
     
