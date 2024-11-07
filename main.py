@@ -53,7 +53,7 @@ def create_position_map(pos, image_size=256, original_width=1024, original_heigh
         torch.Tensor: Binary position map of shape (1, image_size, image_size)
     """
     x, y = pos
-    x, y = 307, 375
+    #x, y = 307, 375
     if x is None:
         return torch.zeros((1, image_size, image_size))
     # Scale the positions to new size
