@@ -193,9 +193,9 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
-            if DEBUG:
-                norm_x = x
-                norm_y = y
+            #if DEBUG:
+            #    norm_x = x
+            #    norm_y = y
             #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
             #action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}', x==0 and y==0))
             action_descriptions.append(format_action(f'{norm_x:.0f}~{norm_y:.0f}', x==0 and y==0))
@@ -263,8 +263,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 if DEBUG:
                     position = positions[0]
                     #positions = positions[1:]
-                    mouse_position = position.split('~')
-                    mouse_position = [int(item) for item in mouse_position]
+                    #mouse_position = position.split('~')
+                    #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
                     
                 #previous_actions.append((action_type, mouse_position))
