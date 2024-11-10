@@ -91,9 +91,9 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
             continue
         else:
             flag = False
-        if DEBUG:
-            x = x * 256 / 1024
-            y = y * 256 / 640
+        #if DEBUG:
+        #    x = x * 256 / 1024
+        #    y = y * 256 / 640
         #draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
         
