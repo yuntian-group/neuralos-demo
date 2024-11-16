@@ -224,8 +224,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prompt = " ".join(action_descriptions[-8:])
     print(prompt)
     #prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
-    
-    pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map(parse_action_string(action_descriptions[-1]))
+    x, y, action_type = parse_action_string(action_descriptions[-1])
+    pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map((x, y), action_type)
     
     
     #prompt = ''
