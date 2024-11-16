@@ -26,8 +26,10 @@ def parse_action_string(action_str):
     Returns:
         tuple: (x, y) coordinates or None if action is padding
     """
+    action_type = action_str[0]
+    action_str = action_str[1:].strip()
     if 'N' in action_str:
-        return (None, None)
+        return (None, None, None)
         
     # Split into x and y parts
     action_str = action_str.replace(' ', '')
@@ -40,9 +42,9 @@ def parse_action_string(action_str):
     # Parse y: remove sign, join digits, convert to int, apply sign
     y = int(y_part)
     
-    return (x, y)
+    return x, y, action_type
 
-def create_position_map(pos, image_size=64, original_width=1024, original_height=640):
+def create_position_and_click_map(pos,action_type,image_size=64, original_width=1024, original_height=640):
     """Convert cursor position to a binary position map
     Args:
         x, y: Original cursor positions
@@ -53,12 +55,18 @@ def create_position_map(pos, image_size=64, original_width=1024, original_height
         torch.Tensor: Binary position map of shape (1, image_size, image_size)
     """
     x, y = pos
-    #x, y = 307, 375
     if x is None:
-        return torch.zeros((1, image_size, image_size))
+        return torch.zeros((1, image_size, image_size)), torch.zeros((1, image_size, image_size))
     # Scale the positions to new size
-    x_scaled = int((x / original_width) * image_size)
-    y_scaled = int((y / original_height) * image_size)
+    #x_scaled = int((x / original_width) * image_size)
+    #y_scaled = int((y / original_height) * image_size)
+    screen_width, screen_height = 1920, 1080
+    video_width, video_height = 512, 512
+        
+    x_scaled = x - (screen_width / 2 - video_width / 2)
+    y_scaled = y - (screen_height / 2 - video_height / 2)
+    x_scaled = int(x_scaled / video_width * image_size)
+    y_scaled = int(y_scaled / video_height * image_size)
     
     # Clamp values to ensure they're within bounds
     x_scaled = max(0, min(x_scaled, image_size - 1))
@@ -67,8 +75,13 @@ def create_position_map(pos, image_size=64, original_width=1024, original_height
     # Create binary position map
     pos_map = torch.zeros((1, image_size, image_size))
     pos_map[0, y_scaled, x_scaled] = 1.0
+
+    leftclick_map = torch.zeros((1, image_size, image_size))
+    if action_type == 'L':
+        leftclick_map[0, y_scaled, x_scaled] = 1.0
     
-    return pos_map, x_scaled, y_scaled
+    
+    return pos_map, leftclick_map, x_scaled, y_scaled
     
 # Serve the index.html file at the root URL
 @app.get("/")
@@ -145,11 +158,11 @@ def denormalize_image(image, source_range=(-1, 1)):
         
 def format_action(action_str, is_padding=False):
     if is_padding:
-        return "N N N N N : N N N N N"
+        return "N N N N N N : N N N N N"
     
     # Split the x~y coordinates
     x, y = map(int, action_str.split('~'))
-    
+    prefix = 'N'
     # Convert numbers to padded strings and add spaces between digits
     x_str = f"{abs(x):04d}"
     y_str = f"{abs(y):04d}"
@@ -157,10 +170,10 @@ def format_action(action_str, is_padding=False):
     y_spaced = ' '.join(y_str)
     
     # Format with sign and proper spacing
-    return f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
+    return prefix + " " + f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
     
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
-    width, height = 256, 256
+    width, height = 512, 512
     initial_images = load_initial_images(width, height)
 
     # Prepare the image sequence for the model
@@ -174,7 +187,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     # Prepare the prompt based on the previous actions
     action_descriptions = []
-    initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
+    #initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
     initial_actions = ['0:0'] * 7
     #initial_actions = ['N N N N N : N N N N N'] * 7
     def unnorm_coords(x, y):
@@ -191,8 +204,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     for action_type, pos in previous_actions: #[-8:]:
         if action_type == "move":
             x, y = pos
-            norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
-            norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
+            #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
+            #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
+            norm_x = x + (1920 - 512) / 2
+            norm_y = y + (1080 - 512) / 2
             #if DEBUG:
             #    norm_x = x
             #    norm_y = y
@@ -207,9 +222,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             action_descriptions.append("right_click")
     
     prompt = " ".join(action_descriptions[-8:])
+    print(prompt)
     #prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
     
-    pos_map, x_scaled, y_scaled = create_position_map(parse_action_string(action_descriptions[-1]))
+    pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map(parse_action_string(action_descriptions[-1]))
     
     
     #prompt = ''
@@ -217,7 +233,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     print(prompt)
     
     # Generate the next frame
-    new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_map=pos_map)
+    new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_map=pos_map, leftclick_map=leftclick_map)
     
     # Convert the generated frame to the correct format
     new_frame = new_frame.transpose(1, 2, 0)

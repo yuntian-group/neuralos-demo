@@ -28,7 +28,7 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     model.eval()
     return model
 
-def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor, pos_map=None):
+def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor, pos_map=None, leftclick_map=None):
     sampler = DDIMSampler(model)
     
     with torch.no_grad():
@@ -39,9 +39,16 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         c_dict = {'c_crossattn': prompt, 'c_concat': image_sequence}
         c = model.get_learned_conditioning(c_dict)
         c = model.enc_concat_seq(c, c_dict, 'c_concat')
+        # Zero out the corresponding subtensors in c_concat for padding images
+        padding_mask = torch.isclose(image_sequence, torch.tensor(-1.0), rtol=1e-5, atol=1e-5).all(dim=(1, 2, 3)).unsqueeze(1)
+        print (padding_mask)
+        padding_mask = padding_mask.repeat(1, 4)  # Repeat mask 4 times for each projected channel
+        print (image_sequence.shape, padding_mask.shape, c['c_concat'].shape)
+        c['c_concat'] = c['c_concat'] * (~padding_mask)  # Zero out the corresponding features
+        
         if pos_map is not None:
             print (pos_map.shape, c['c_concat'].shape)
-            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
+            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_map.to(c['c_concat'].device).unsqueeze(0), leftclick_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
