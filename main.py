@@ -108,7 +108,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
 
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
-model = initialize_model("2e5_debug_gpt_firstframe_posmap_longtrainh200.yaml", "yuntian-deng/computer-model")
+model = initialize_model("pssearch_bsz64_acc1_lr8e5_512_leftclick.yaml", "yuntian-deng/computer-model")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
