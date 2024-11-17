@@ -284,7 +284,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
                     
                 previous_actions.append((action_type, mouse_position))
-                previous_actions = [(action_type, mouse_position)]
+                #previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
@@ -293,7 +293,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 #img = Image.open(f"image_{len(previous_frames)%7}.png")
-                #previous_frames.append(next_frame_append)
+                previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
