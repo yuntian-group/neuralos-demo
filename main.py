@@ -258,16 +258,25 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prompt = " ".join(action_descriptions[-8:])
     print(prompt)
     #prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
-    x, y, action_type = parse_action_string(action_descriptions[-1])
-    pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map((x, y), action_type)
-    
+    #x, y, action_type = parse_action_string(action_descriptions[-1])
+    #pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map((x, y), action_type)
+    leftclick_maps = []
+    pos_maps = []
+    for j in range(1, 9):
+        x, y, action_type = parse_action_string(action_descriptions[-j])
+        pos_map_j, leftclick_map_j, x_scaled_j, y_scaled_j = create_position_and_click_map((x, y), action_type)
+        leftclick_maps.append(leftclick_map_j)
+        pos_maps.append(pos_map_j)
+        if j == 1:
+            x_scaled = x_scaled_j
+            y_scaled = y_scaled_j
     
     #prompt = ''
     #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
     print(prompt)
     
     # Generate the next frame
-    new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_map=pos_map, leftclick_map=leftclick_map)
+    new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_maps=pos_maps, leftclick_maps=leftclick_maps)
     
     # Convert the generated frame to the correct format
     new_frame = new_frame.transpose(1, 2, 0)

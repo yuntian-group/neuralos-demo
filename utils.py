@@ -28,7 +28,7 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     model.eval()
     return model
 
-def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor, pos_map=None, leftclick_map=None):
+def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tensor, pos_maps=None, leftclick_maps=None):
     sampler = DDIMSampler(model)
     
     with torch.no_grad():
@@ -46,9 +46,11 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         print (image_sequence.shape, padding_mask.shape, c['c_concat'].shape)
         c['c_concat'] = c['c_concat'] * (~padding_mask.unsqueeze(-1).unsqueeze(-1))  # Zero out the corresponding features
         
-        if pos_map is not None:
-            print (pos_map.shape, c['c_concat'].shape)
-            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_map.to(c['c_concat'].device).unsqueeze(0), leftclick_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
+        if pos_maps is not None:
+            pos_map = pos_maps[0]
+            leftclick_map = torch.cat(leftclick_maps, dim=0)
+            print (pos_maps[0].shape, c['c_concat'].shape, leftclick_map.shape)
+            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_maps[0].to(c['c_concat'].device).unsqueeze(0), leftclick_maps[0].to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
