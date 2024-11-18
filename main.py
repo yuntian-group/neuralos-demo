@@ -201,8 +201,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         previous_actions.insert(0, ("move", unnorm_coords(x, y)))
     prev_x = 0
     prev_y = 0
+    print ('here')
 
     if DEBUG_TEACHER_FORCING:
+        print ('here2')
         # Use the predefined actions for image_81
         debug_actions = [
             'N + 0 8 5 3 : + 0 4 5 0', 'N + 0 8 7 1 : + 0 4 6 3',
@@ -215,11 +217,12 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             'N + 0 9 2 7 : + 0 5 0 1'
         ]
         previous_actions = []
-        for action in debug_actions:
+        for action in debug_actions[-8:]:
             x, y, action_type = parse_action_string(action)
             previous_actions.append((action_type, (x, y)))
     
     for action_type, pos in previous_actions: #[-8:]:
+        print ('here3')
         if action_type == "move":
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
