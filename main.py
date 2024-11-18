@@ -13,6 +13,7 @@ import os
 import time
 
 DEBUG = True
+DEBUG_TEACHER_FORCING = True
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -128,15 +129,14 @@ model = model.to(device)
 
 def load_initial_images(width, height):
     initial_images = []
-    for i in range(7):
-        initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
-        #image_path = f"image_{i}.png"
-        #if os.path.exists(image_path):
-        #    img = Image.open(image_path).resize((width, height))
-        #    initial_images.append(np.array(img))
-        #else:
-        #    print(f"Warning: {image_path} not found. Using blank image instead.")
-        #    initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
+    if DEBUG_TEACHER_FORCING:
+        # Load the previous 7 frames for image_81
+        for i in range(74, 81):  # Load images 74-80
+            img = Image.open(f"record_100/image_{i}.png").resize((width, height))
+            initial_images.append(np.array(img))
+    else:
+        for i in range(7):
+            initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
     return initial_images
 
 def normalize_images(images, target_range=(-1, 1)):
@@ -156,13 +156,15 @@ def denormalize_image(image, source_range=(-1, 1)):
     else:
         raise ValueError(f"Unsupported source range: {source_range}")
         
-def format_action(action_str, is_padding=False):
+def format_action(action_str, is_padding=False, is_leftclick=False):
     if is_padding:
         return "N N N N N N : N N N N N"
     
     # Split the x~y coordinates
     x, y = map(int, action_str.split('~'))
     prefix = 'N'
+    if is_leftclick:
+        prefix = 'L'
     # Convert numbers to padded strings and add spaces between digits
     x_str = f"{abs(x):04d}"
     y_str = f"{abs(y):04d}"
@@ -200,6 +202,22 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prev_x = 0
     prev_y = 0
 
+    if DEBUG_TEACHER_FORCING:
+        # Use the predefined actions for image_81
+        debug_actions = [
+            'N + 0 8 5 3 : + 0 4 5 0', 'N + 0 8 7 1 : + 0 4 6 3',
+            'N + 0 8 9 0 : + 0 4 7 5', 'N + 0 9 0 8 : + 0 4 8 8',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1'
+        ]
+        previous_actions = []
+        for action in debug_actions:
+            x, y, action_type = parse_action_string(action)
+            previous_actions.append((action_type, (x, y)))
     
     for action_type, pos in previous_actions: #[-8:]:
         if action_type == "move":
@@ -217,7 +235,17 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             prev_x = norm_x
             prev_y = norm_y
         elif action_type == "left_click":
-            action_descriptions.append("left_click")
+            x, y = pos
+            #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
+            #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
+            norm_x = x + (1920 - 512) / 2
+            norm_y = y + (1080 - 512) / 2
+            #if DEBUG:
+            #    norm_x = x
+            #    norm_y = y
+            #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
+            #action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}', x==0 and y==0))
+            action_descriptions.append(format_action(f'{norm_x:.0f}~{norm_y:.0f}', x==0 and y==0, True))
         elif action_type == "right_click":
             action_descriptions.append("right_click")
     
