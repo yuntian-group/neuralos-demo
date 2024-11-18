@@ -131,7 +131,7 @@ def load_initial_images(width, height):
     initial_images = []
     if DEBUG_TEACHER_FORCING:
         # Load the previous 7 frames for image_81
-        for i in range(74, 81):  # Load images 74-80
+        for i in range(75, 82):  # Load images 74-80
             img = Image.open(f"record_100/image_{i}.png").resize((width, height))
             initial_images.append(np.array(img))
     else:
@@ -201,10 +201,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         previous_actions.insert(0, ("N", unnorm_coords(x, y)))
     prev_x = 0
     prev_y = 0
-    print ('here')
+    #print ('here')
 
     if DEBUG_TEACHER_FORCING:
-        print ('here2')
+        #print ('here2')
         # Use the predefined actions for image_81
         debug_actions = [
             'N + 0 8 5 3 : + 0 4 5 0', 'N + 0 8 7 1 : + 0 4 6 3',
@@ -214,7 +214,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
             'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
             'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'N + 0 9 2 7 : + 0 5 0 1'
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1'
         ]
         previous_actions = []
         for action in debug_actions[-8:]:
