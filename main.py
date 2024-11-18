@@ -203,23 +203,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prev_y = 0
     #print ('here')
 
-    if DEBUG_TEACHER_FORCING:
-        #print ('here2')
-        # Use the predefined actions for image_81
-        debug_actions = [
-            'N + 0 8 5 3 : + 0 4 5 0', 'N + 0 8 7 1 : + 0 4 6 3',
-            'N + 0 8 9 0 : + 0 4 7 5', 'N + 0 9 0 8 : + 0 4 8 8',
-            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
-            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1'
-        ]
-        previous_actions = []
-        for action in debug_actions[-8:]:
-            x, y, action_type = parse_action_string(action)
-            previous_actions.append((action_type, (x, y)))
+    
     
     for action_type, pos in previous_actions: #[-8:]:
         print ('here3', action_type, pos)
@@ -302,6 +286,31 @@ async def websocket_endpoint(websocket: WebSocket):
     positions = ['815~335']
     #positions = ['787~342']
     positions = ['300~800']
+
+    if DEBUG_TEACHER_FORCING:
+        #print ('here2')
+        # Use the predefined actions for image_81
+        debug_actions = [
+            'N + 0 8 5 3 : + 0 4 5 0', 'N + 0 8 7 1 : + 0 4 6 3',
+            'N + 0 8 9 0 : + 0 4 7 5', 'N + 0 9 0 8 : + 0 4 8 8',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
+            'N + 0 9 2 7 : + 0 5 0 1', #'N + 0 9 2 7 : + 0 5 0 1'
+        ]
+        previous_actions = []
+        for action in debug_actions[-8:]:
+            x, y, action_type = parse_action_string(action)
+            previous_actions.append((action_type, (x, y)))
+        positions = [
+            'N + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 1 8 : + 0 4 9 2', 
+            'N + 0 9 0 8 : + 0 4 8 3', 'N + 0 8 9 8 : + 0 4 7 4', 
+            'N + 0 8 8 9 : + 0 4 6 5', 'N + 0 8 8 0 : + 0 4 5 6', 
+            'N + 0 8 7 0 : + 0 4 4 7', 'N + 0 8 6 0 : + 0 4 3 8', 
+            'N + 0 8 5 1 : + 0 4 2 9', 'N + 0 8 4 2 : + 0 4 2 0', 
+            'N + 0 8 3 2 : + 0 4 1 1', 'N + 0 8 3 2 : + 0 4 1 1']
 #positions = positions[:4]
     try:
         while True:
@@ -325,9 +334,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = position.split('~')
                     #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
-                    
+                if DEBUG_TEACHER_FORCING:
+                    position = positions[0]
+                    positions = positions[1:]
+                    x, y, action_type = parse_action_string(position)
+                    mouse_position = (x, y)
                 previous_actions.append((action_type, mouse_position))
-                previous_actions = [(action_type, mouse_position)]
+                #previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
@@ -336,7 +349,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 #img = Image.open(f"image_{len(previous_frames)%7}.png")
-                #previous_frames.append(next_frame_append)
+                previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
