@@ -198,7 +198,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Process initial actions if there are not enough previous actions
     while len(previous_actions) < 8:
         x, y = map(int, initial_actions.pop(0).split(':'))
-        previous_actions.insert(0, ("move", unnorm_coords(x, y)))
+        previous_actions.insert(0, ("N", unnorm_coords(x, y)))
     prev_x = 0
     prev_y = 0
     print ('here')
@@ -222,8 +222,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             previous_actions.append((action_type, (x, y)))
     
     for action_type, pos in previous_actions: #[-8:]:
-        print ('here3')
-        if action_type == "move":
+        print ('here3', action_type, pos)
+        if action_type == "N":
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
@@ -237,7 +237,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             action_descriptions.append(format_action(f'{norm_x:.0f}~{norm_y:.0f}', x==0 and y==0))
             prev_x = norm_x
             prev_y = norm_y
-        elif action_type == "left_click":
+        elif action_type == "L":
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
@@ -250,7 +250,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             #action_descriptions.append(format_action(f'{norm_x-prev_x:.0f}~{norm_y-prev_y:.0f}', x==0 and y==0))
             action_descriptions.append(format_action(f'{norm_x:.0f}~{norm_y:.0f}', x==0 and y==0, True))
         elif action_type == "right_click":
+            assert False
             action_descriptions.append("right_click")
+        else:
+            assert False
     
     prompt = " ".join(action_descriptions[-8:])
     print(prompt)
