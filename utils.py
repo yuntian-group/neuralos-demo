@@ -50,7 +50,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
             pos_map = pos_maps[0]
             leftclick_map = torch.cat(leftclick_maps, dim=0)
             print (pos_maps[0].shape, c['c_concat'].shape, leftclick_map.shape)
-            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_maps[0].to(c['c_concat'].device).unsqueeze(0), leftclick_maps[0].to(c['c_concat'].device).unsqueeze(0)], dim=1)
+            c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_maps[0].to(c['c_concat'].device).unsqueeze(0), leftclick_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
         #time.sleep(120)
