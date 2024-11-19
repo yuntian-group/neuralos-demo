@@ -346,6 +346,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 start_time = time.time()
                 
                 # Predict the next frame based on the previous frames and actions
+                print ('predicting', f"record_100/image_{82+len(previous_frames)}.png")
+
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
