@@ -57,7 +57,7 @@ def create_position_and_click_map(pos,action_type,image_size=64, original_width=
     """
     x, y = pos
     if x is None:
-        return torch.zeros((1, image_size, image_size)), torch.zeros((1, image_size, image_size))
+        return torch.zeros((1, image_size, image_size)), torch.zeros((1, image_size, image_size)), None, None
     # Scale the positions to new size
     #x_scaled = int((x / original_width) * image_size)
     #y_scaled = int((y / original_height) * image_size)
