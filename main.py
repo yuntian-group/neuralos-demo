@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = False
+DEBUG_TEACHER_FORCING = True
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -352,14 +352,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 start_time = time.time()
                 
                 # Predict the next frame based on the previous frames and actions
-                print ('predicting', f"record_100/image_{82+len(previous_frames)}.png")
+                if DEBUG_TEACHER_FORCING:
+                    print ('predicting', f"record_100/image_{82+len(previous_frames)}.png")
 
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                #img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
-                #previous_frames.append(img)
-                previous_frames.append(next_frame_append)
+                if DEBUG_TEACHER_FORCING:
+                    img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
+                    previous_frames.append(img)
+                else:
+                    previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
