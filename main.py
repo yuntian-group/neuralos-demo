@@ -209,6 +209,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         print ('here3', action_type, pos)
         if action_type == 'move':
             action_type = 'N'
+        if action_type == 'left_click':
+            action_type = 'L'
         if action_type == "N":
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
