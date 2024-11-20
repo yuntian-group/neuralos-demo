@@ -250,6 +250,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     leftclick_maps = []
     pos_maps = []
     for j in range(1, 9):
+        print ('fsfs', action_descriptions[-j])
         x, y, action_type = parse_action_string(action_descriptions[-j])
         pos_map_j, leftclick_map_j, x_scaled_j, y_scaled_j = create_position_and_click_map((x, y), action_type)
         leftclick_maps.append(leftclick_map_j)
