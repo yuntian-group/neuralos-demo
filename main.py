@@ -12,7 +12,7 @@ import torch
 import os
 import time
 
-DEBUG = True
+DEBUG = False
 DEBUG_TEACHER_FORCING = False
 app = FastAPI()
 
@@ -346,7 +346,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
                 previous_actions.append((action_type, mouse_position))
-                previous_actions = [(action_type, mouse_position)]
+                #previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
@@ -359,7 +359,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 print ('here4', len(previous_frames))
                 img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
                 #previous_frames.append(img)
-                #previous_frames.append(next_frame_append)
+                previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
