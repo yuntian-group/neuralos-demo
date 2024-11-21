@@ -331,6 +331,7 @@ async def websocket_endpoint(websocket: WebSocket):
         ]
         previous_actions = []
         for action in debug_actions[-8:]:
+            action = action.replae('1 1', '0 8')
             x, y, action_type = parse_action_string(action)
             previous_actions.append((action_type, (x, y)))
         positions = [
