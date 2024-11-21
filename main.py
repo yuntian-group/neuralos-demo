@@ -218,7 +218,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
             norm_x = x + (1920 - 512) / 2
             norm_y = y + (1080 - 512) / 2
-            if True and DEBUG_TEACHER_FORCING:
+            if False and DEBUG_TEACHER_FORCING:
                 norm_x = x
                 norm_y = y
             #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
@@ -232,7 +232,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
             norm_x = x + (1920 - 512) / 2
             norm_y = y + (1080 - 512) / 2
-            if True and DEBUG_TEACHER_FORCING:
+            if False and DEBUG_TEACHER_FORCING:
                 norm_x = x #+ (1920 - 512) / 2
                 norm_y = y #+ (1080 - 512) / 2
             #if DEBUG:
@@ -369,7 +369,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
-                if False:
+                if True:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
                 
@@ -386,7 +386,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if False and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
                     previous_frames.append(img)
-                elif False:
+                elif True:
                     previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
