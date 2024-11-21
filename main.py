@@ -230,9 +230,11 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
+            norm_x = x + (1920 - 512) / 2
+            norm_y = y + (1080 - 512) / 2
             if True and DEBUG_TEACHER_FORCING:
-                norm_x = x + (1920 - 512) / 2
-                norm_y = y + (1080 - 512) / 2
+                norm_x = x #+ (1920 - 512) / 2
+                norm_y = y #+ (1080 - 512) / 2
             #if DEBUG:
             #    norm_x = x
             #    norm_y = y
