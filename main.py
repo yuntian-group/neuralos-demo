@@ -340,7 +340,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = position.split('~')
                     #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
-                if DEBUG_TEACHER_FORCING:
+                if False and DEBUG_TEACHER_FORCING:
                     position = positions[0]
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
