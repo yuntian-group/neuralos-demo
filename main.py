@@ -319,6 +319,16 @@ async def websocket_endpoint(websocket: WebSocket):
             'L + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
             'N + 1 1 9 7 : + 0 2 9 7'
         ]
+        debug_actions = [
+            'N + 1 1 6 5 : + 0 4 4 3', 'N + 1 1 7 0 : + 0 4 1 8', 
+            'N + 1 1 7 5 : + 0 3 9 4', 'N + 1 1 8 1 : + 0 3 7 0', 
+            'N + 1 1 8 4 : + 0 3 5 8', 'N + 1 1 8 9 : + 0 3 3 3', 
+            'N + 1 1 9 4 : + 0 3 0 9', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7'
+        ]
         previous_actions = []
         for action in debug_actions[-8:]:
             x, y, action_type = parse_action_string(action)
