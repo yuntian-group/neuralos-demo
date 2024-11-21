@@ -131,10 +131,11 @@ def load_initial_images(width, height):
     initial_images = []
     if DEBUG_TEACHER_FORCING:
         # Load the previous 7 frames for image_81
-        for i in range(75, 82):  # Load images 74-80
+        for i in range(222-7, 222):  # Load images 74-80
             img = Image.open(f"record_100/image_{i}.png").resize((width, height))
             initial_images.append(np.array(img))
     else:
+        assert False
         for i in range(7):
             initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
     return initial_images
@@ -229,7 +230,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             x, y = pos
             #norm_x = int(round(x / 256 * 1024)) #x + (1920 - 256) / 2
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
-            if False and DEBUG_TEACHER_FORCING:
+            if True and DEBUG_TEACHER_FORCING:
                 norm_x = x + (1920 - 512) / 2
                 norm_y = y + (1080 - 512) / 2
             #if DEBUG:
@@ -306,6 +307,16 @@ async def websocket_endpoint(websocket: WebSocket):
             'L + 0 9 2 7 : + 0 5 0 1', 'N + 0 9 2 7 : + 0 5 0 1',
             'N + 0 9 2 7 : + 0 5 0 1', #'N + 0 9 2 7 : + 0 5 0 1'
         ]
+        debug_actions = [
+            'N + 1 1 6 5 : + 0 4 4 3', 'N + 1 1 7 0 : + 0 4 1 8', 
+            'N + 1 1 7 5 : + 0 3 9 4', 'N + 1 1 8 1 : + 0 3 7 0', 
+            'N + 1 1 8 4 : + 0 3 5 8', 'N + 1 1 8 9 : + 0 3 3 3', 
+            'N + 1 1 9 4 : + 0 3 0 9', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'L + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7'
+        ]
         previous_actions = []
         for action in debug_actions[-8:]:
             x, y, action_type = parse_action_string(action)
@@ -316,7 +327,18 @@ async def websocket_endpoint(websocket: WebSocket):
             'N + 0 8 8 9 : + 0 4 6 5', 'N + 0 8 8 0 : + 0 4 5 6', 
             'N + 0 8 7 0 : + 0 4 4 7', 'N + 0 8 6 0 : + 0 4 3 8', 
             'N + 0 8 5 1 : + 0 4 2 9', 'N + 0 8 4 2 : + 0 4 2 0', 
-            'N + 0 8 3 2 : + 0 4 1 1', 'N + 0 8 3 2 : + 0 4 1 1']
+            'N + 0 8 3 2 : + 0 4 1 1', 'N + 0 8 3 2 : + 0 4 1 1'
+        ]
+        positions = [
+            #'L + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
+            'N + 1 1 7 9 : + 0 3 0 3', 'N + 1 1 4 2 : + 0 3 1 4', 
+            'N + 1 1 0 6 : + 0 3 2 6', 'N + 1 0 6 9 : + 0 3 3 7', 
+            'N + 1 0 5 1 : + 0 3 4 3', 'N + 1 0 1 4 : + 0 3 5 4', 
+            'N + 0 9 7 8 : + 0 3 6 5', 'N + 0 9 4 2 : + 0 3 7 7', 
+            'N + 0 9 0 5 : + 0 3 8 8', 'N + 0 8 6 8 : + 0 4 0 0', 
+            'N + 0 8 3 2 : + 0 4 1 1'
+        ]
 #positions = positions[:4]
     try:
         while True:
@@ -340,12 +362,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = position.split('~')
                     #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
-                if False and DEBUG_TEACHER_FORCING:
+                if True and DEBUG_TEACHER_FORCING:
                     position = positions[0]
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
-                previous_actions.append((action_type, mouse_position))
+                if False:
+                    previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
@@ -361,7 +384,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if False and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
                     previous_frames.append(img)
-                else:
+                elif False:
                     previous_frames.append(next_frame_append)
                 
                 # Convert the numpy array to a base64 encoded image
