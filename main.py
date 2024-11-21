@@ -218,7 +218,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
             #norm_y = int(round(y / 256 * 640)) #y + (1080 - 256) / 2
             norm_x = x + (1920 - 512) / 2
             norm_y = y + (1080 - 512) / 2
-            if False and DEBUG_TEACHER_FORCING:
+            if True and DEBUG_TEACHER_FORCING:
                 norm_x = x
                 norm_y = y
             #action_descriptions.append(f"{(norm_x-prev_x):.0f}~{(norm_y-prev_y):.0f}")
@@ -381,7 +381,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                if False and DEBUG_TEACHER_FORCING:
+                if True and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
                     previous_frames.append(img)
                 elif False:
