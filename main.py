@@ -383,7 +383,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                if True and DEBUG_TEACHER_FORCING:
+                if False and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
                     previous_frames.append(img)
                 elif False:
