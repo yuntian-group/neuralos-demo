@@ -131,7 +131,7 @@ def load_initial_images(width, height):
     initial_images = []
     if DEBUG_TEACHER_FORCING:
         # Load the previous 7 frames for image_81
-        for i in range(117-7, 117):  # Load images 74-80
+        for i in range(114-7, 114):  # Load images 74-80
             img = Image.open(f"record_10003/image_{i}.png").resize((width, height))
             initial_images.append(np.array(img))
     else:
@@ -400,7 +400,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
-                if False:
+                if True:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
                 
@@ -409,13 +409,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Predict the next frame based on the previous frames and actions
                 if DEBUG_TEACHER_FORCING:
-                    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
+                    print ('predicting', f"record_10003/image_{114+len(previous_frames)}.png")
 
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
                 if True and DEBUG_TEACHER_FORCING:
-                    img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
+                    img = Image.open(f"record_10003/image_{114+len(previous_frames)}.png")
                     previous_frames.append(img)
                 elif True:
                     previous_frames.append(next_frame_append)
