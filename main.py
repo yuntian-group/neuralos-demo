@@ -375,6 +375,12 @@ async def websocket_endpoint(websocket: WebSocket):
                          'N + 0 3 0 7 : + 0 3 3 2', 'N + 0 2 2 0 : + 0 3 7 1', 
                          'N + 0 0 8 2 : + 0 1 5 1']
 #positions = positions[:4]
+    position = positions[0]
+    positions = positions[1:]
+    x, y, action_type = parse_action_string(position)
+    mouse_position = (x, y)
+                
+    previous_actions.append((action_type, mouse_position))
     try:
         while True:
             try:
@@ -402,7 +408,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
-                if True:
+                if False:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
                 
@@ -422,7 +428,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif True:
                     assert False
                     previous_frames.append(next_frame_append)
-                #previous_frames = []
+                previous_frames = []
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
