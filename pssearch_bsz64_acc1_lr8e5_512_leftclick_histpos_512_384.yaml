@@ -2,7 +2,7 @@ save_path: saved_bsz64_acc1_lr8e5_512_leftclick_histpos_512_384_cont2
 
 model:
   base_learning_rate: 8.0e-05
-  target: latent_diffusion.ldm.models.diffusion.ddpm.LatentDiffusion
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.0015
     linear_end: 0.0195
@@ -11,7 +11,6 @@ model:
     timesteps: 1000
     first_stage_key: image
     cond_stage_key: action_
-    scheduler_sampling_rate: 0.0
     hybrid_key: c_concat
     image_size: [64, 48]
     channels: 3
@@ -20,7 +19,7 @@ model:
     monitor: val/loss_simple_ema
 
     unet_config:
-      target: latent_diffusion.ldm.modules.diffusionmodules.openaimodel.UNetModel
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: [64, 48]
         in_channels: 41
@@ -41,7 +40,7 @@ model:
         transformer_depth: 1
         context_dim: 768
     first_stage_config:
-      target: latent_diffusion.ldm.models.autoencoder.AutoencoderKL
+      target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 4
         monitor: val/rec_loss
@@ -64,7 +63,7 @@ model:
           target: torch.nn.Identity
 
     cond_stage_config:
-      target: latent_diffusion.ldm.modules.encoders.modules.GPTEmbedder
+      target: ldm.modules.encoders.modules.GPTEmbedder
       params:
         n_embed: 768
         n_layer: 12
