@@ -386,7 +386,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     mouse_position = (x, y)
                 if True:
                     previous_actions.append((action_type, mouse_position))
-                #previous_actions = [(action_type, mouse_position)]
+                previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
@@ -403,6 +403,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     previous_frames.append(img)
                 elif True:
                     previous_frames.append(next_frame_append)
+                previous_frames = []
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
