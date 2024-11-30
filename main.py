@@ -70,14 +70,14 @@ def create_position_and_click_map(pos,action_type, image_height=48, image_width=
     y_scaled = int(y / original_height * image_height)
     
     # Clamp values to ensure they're within bounds
-    x_scaled = max(0, min(x_scaled, image_size - 1))
-    y_scaled = max(0, min(y_scaled, image_size - 1))
+    x_scaled = max(0, min(x_scaled, image_width - 1))
+    y_scaled = max(0, min(y_scaled, image_height - 1))
     
     # Create binary position map
-    pos_map = torch.zeros((1, image_size, image_size))
+    pos_map = torch.zeros((1, image_height, image_width))
     pos_map[0, y_scaled, x_scaled] = 1.0
 
-    leftclick_map = torch.zeros((1, image_size, image_size))
+    leftclick_map = torch.zeros((1, image_height, image_width))
     if action_type == 'L':
         leftclick_map[0, y_scaled, x_scaled] = 1.0
     
