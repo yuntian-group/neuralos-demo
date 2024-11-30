@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = True
+DEBUG_TEACHER_FORCING = False
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -45,7 +45,7 @@ def parse_action_string(action_str):
     
     return x, y, action_type
 
-def create_position_and_click_map(pos,action_type,image_size=64, original_width=1024, original_height=640):
+def create_position_and_click_map(pos,action_type, image_height=48, image_width=64, original_width=512, original_height=384):
     """Convert cursor position to a binary position map
     Args:
         x, y: Original cursor positions
@@ -57,17 +57,17 @@ def create_position_and_click_map(pos,action_type,image_size=64, original_width=
     """
     x, y = pos
     if x is None:
-        return torch.zeros((1, image_size, image_size)), torch.zeros((1, image_size, image_size)), None, None
+        return torch.zeros((1, image_height, image_width)), torch.zeros((1, image_height, image_width)), None, None
     # Scale the positions to new size
     #x_scaled = int((x / original_width) * image_size)
     #y_scaled = int((y / original_height) * image_size)
-    screen_width, screen_height = 1920, 1080
-    video_width, video_height = 512, 512
+    #screen_width, screen_height = 512, 384
+    #video_width, video_height = 512, 384
         
-    x_scaled = x - (screen_width / 2 - video_width / 2)
-    y_scaled = y - (screen_height / 2 - video_height / 2)
-    x_scaled = int(x_scaled / video_width * image_size)
-    y_scaled = int(y_scaled / video_height * image_size)
+    #x_scaled = x - (screen_width / 2 - video_width / 2)
+    #y_scaled = y - (screen_height / 2 - video_height / 2)
+    x_scaled = int(x / original_width * image_width)
+    y_scaled = int(y / original_height * image_height)
     
     # Clamp values to ensure they're within bounds
     x_scaled = max(0, min(x_scaled, image_size - 1))
