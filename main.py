@@ -131,8 +131,8 @@ def load_initial_images(width, height):
     initial_images = []
     if DEBUG_TEACHER_FORCING:
         # Load the previous 7 frames for image_81
-        for i in range(209-7, 209):  # Load images 74-80
-            img = Image.open(f"record_100/image_{i}.png").resize((width, height))
+        for i in range(117-7, 117):  # Load images 74-80
+            img = Image.open(f"record_10003/image_{i}.png").resize((width, height))
             initial_images.append(np.array(img))
     else:
         #assert False
