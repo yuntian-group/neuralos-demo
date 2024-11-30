@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = False
+DEBUG_TEACHER_FORCING = True
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -333,6 +333,14 @@ async def websocket_endpoint(websocket: WebSocket):
             'N + 1 1 9 7 : + 0 2 9 7', 'N + 1 1 9 7 : + 0 2 9 7', 
             'N + 1 1 9 7 : + 0 2 9 7'
         ]
+        debug_actions = ['N + 0 0 4 0 : + 0 2 0 4', 'N + 0 1 3 8 : + 0 1 9 0', 
+                         'N + 0 2 7 4 : + 0 3 8 3', 'N + 0 5 0 1 : + 0 1 7 3', 
+                         'L + 0 4 7 3 : + 0 0 8 7', 'N + 0 1 0 9 : + 0 3 4 4', 
+                         'N + 0 0 5 2 : + 0 1 9 4', 'N + 0 3 6 5 : + 0 2 3 2', 
+                         'N + 0 3 8 9 : + 0 2 4 5', 'N + 0 0 2 0 : + 0 0 5 9', 
+                         'N + 0 4 7 3 : + 0 1 5 7', 'L + 0 1 9 1 : + 0 0 8 7', 
+                         'L + 0 1 9 1 : + 0 0 8 7', 'N + 0 3 4 3 : + 0 2 6 3', ]
+                         #'N + 0 2 0 5 : + 0 1 3 3']
         previous_actions = []
         for action in debug_actions[-8:]:
             action = action.replace('1 1', '0 4')
@@ -356,6 +364,14 @@ async def websocket_endpoint(websocket: WebSocket):
             'N + 0 9 0 5 : + 0 3 8 8', 'N + 0 8 6 8 : + 0 4 0 0', 
             'N + 0 8 3 2 : + 0 4 1 1'
         ]
+        positions = ['N + 0 2 0 5 : + 0 1 3 3', 'N + 0 0 7 6 : + 0 3 4 5', 
+                     'N + 0 3 1 8 : + 0 3 3 3', 'N + 0 2 5 4 : + 0 2 9 0', 
+                     'N + 0 1 0 6 : + 0 1 6 4', 'N + 0 0 7 4 : + 0 2 8 4', 
+                     'N + 0 0 2 4 : + 0 0 4 1', 'N + 0 1 5 0 : + 0 3 8 3', 
+                     'N + 0 4 0 5 : + 0 1 6 8', 'N + 0 0 5 4 : + 0 3 2 4', 
+                     'N + 0 2 9 0 : + 0 1 4 1', 'N + 0 4 0 2 : + 0 0 0 9', 
+                     'N + 0 3 0 7 : + 0 3 3 2', 'N + 0 2 2 0 : + 0 3 7 1', 
+                     'N + 0 0 8 2 : + 0 1 5 1']
 #positions = positions[:4]
     try:
         while True:
@@ -379,31 +395,31 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = position.split('~')
                     #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
-                if False and DEBUG_TEACHER_FORCING:
+                if True and DEBUG_TEACHER_FORCING:
                     position = positions[0]
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
-                if True:
+                if False:
                     previous_actions.append((action_type, mouse_position))
-                previous_actions = [(action_type, mouse_position)]
+                #previous_actions = [(action_type, mouse_position)]
                 
                 # Log the start time
                 start_time = time.time()
                 
                 # Predict the next frame based on the previous frames and actions
                 if DEBUG_TEACHER_FORCING:
-                    print ('predicting', f"record_100/image_{82+len(previous_frames)}.png")
+                    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
 
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                if False and DEBUG_TEACHER_FORCING:
-                    img = Image.open(f"record_100/image_{82+len(previous_frames)}.png")
+                if True and DEBUG_TEACHER_FORCING:
+                    img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
                     previous_frames.append(img)
                 elif True:
                     previous_frames.append(next_frame_append)
-                previous_frames = []
+                #previous_frames = []
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
