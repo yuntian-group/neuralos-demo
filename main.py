@@ -176,7 +176,7 @@ def format_action(action_str, is_padding=False, is_leftclick=False):
     return prefix + " " + f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
     
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
-    width, height = 512, 512
+    width, height = 512, 384
     initial_images = load_initial_images(width, height)
 
     # Prepare the image sequence for the model
