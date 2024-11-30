@@ -132,7 +132,7 @@ def load_initial_images(width, height):
     if DEBUG_TEACHER_FORCING:
         # Load the previous 7 frames for image_81
         for i in range(114-7, 114):  # Load images 74-80
-            img = Image.open(f"record_10003/image_{i}.png").resize((width, height))
+            img = Image.open(f"record_10003/image_{i}.png")#.resize((width, height))
             initial_images.append(np.array(img))
     else:
         #assert False
@@ -338,8 +338,8 @@ async def websocket_endpoint(websocket: WebSocket):
                          'L + 0 4 7 3 : + 0 0 8 7', 'N + 0 1 0 9 : + 0 3 4 4', 
                          'N + 0 0 5 2 : + 0 1 9 4', 'N + 0 3 6 5 : + 0 2 3 2', 
                          'N + 0 3 8 9 : + 0 2 4 5', 'N + 0 0 2 0 : + 0 0 5 9', 
-                         'N + 0 4 7 3 : + 0 1 5 7', 'L + 0 1 9 1 : + 0 0 8 7', 
-                         'L + 0 1 9 1 : + 0 0 8 7', 'N + 0 3 4 3 : + 0 2 6 3', ]
+                         'N + 0 4 7 3 : + 0 1 5 7', ]#'L + 0 1 9 1 : + 0 0 8 7', 
+                         #'L + 0 1 9 1 : + 0 0 8 7', 'N + 0 3 4 3 : + 0 2 6 3', ]
                          #'N + 0 2 0 5 : + 0 1 3 3']
         previous_actions = []
         for action in debug_actions[-8:]:
@@ -364,14 +364,16 @@ async def websocket_endpoint(websocket: WebSocket):
             'N + 0 9 0 5 : + 0 3 8 8', 'N + 0 8 6 8 : + 0 4 0 0', 
             'N + 0 8 3 2 : + 0 4 1 1'
         ]
-        positions = ['N + 0 2 0 5 : + 0 1 3 3', 'N + 0 0 7 6 : + 0 3 4 5', 
-                     'N + 0 3 1 8 : + 0 3 3 3', 'N + 0 2 5 4 : + 0 2 9 0', 
-                     'N + 0 1 0 6 : + 0 1 6 4', 'N + 0 0 7 4 : + 0 2 8 4', 
-                     'N + 0 0 2 4 : + 0 0 4 1', 'N + 0 1 5 0 : + 0 3 8 3', 
-                     'N + 0 4 0 5 : + 0 1 6 8', 'N + 0 0 5 4 : + 0 3 2 4', 
-                     'N + 0 2 9 0 : + 0 1 4 1', 'N + 0 4 0 2 : + 0 0 0 9', 
-                     'N + 0 3 0 7 : + 0 3 3 2', 'N + 0 2 2 0 : + 0 3 7 1', 
-                     'N + 0 0 8 2 : + 0 1 5 1']
+        positions = ['L + 0 1 9 1 : + 0 0 8 7', 
+                         'L + 0 1 9 1 : + 0 0 8 7', 'N + 0 3 4 3 : + 0 2 6 3',
+                         'N + 0 2 0 5 : + 0 1 3 3', 'N + 0 0 7 6 : + 0 3 4 5', 
+                         'N + 0 3 1 8 : + 0 3 3 3', 'N + 0 2 5 4 : + 0 2 9 0', 
+                         'N + 0 1 0 6 : + 0 1 6 4', 'N + 0 0 7 4 : + 0 2 8 4', 
+                         'N + 0 0 2 4 : + 0 0 4 1', 'N + 0 1 5 0 : + 0 3 8 3', 
+                         'N + 0 4 0 5 : + 0 1 6 8', 'N + 0 0 5 4 : + 0 3 2 4', 
+                         'N + 0 2 9 0 : + 0 1 4 1', 'N + 0 4 0 2 : + 0 0 0 9', 
+                         'N + 0 3 0 7 : + 0 3 3 2', 'N + 0 2 2 0 : + 0 3 7 1', 
+                         'N + 0 0 8 2 : + 0 1 5 1']
 #positions = positions[:4]
     try:
         while True:
@@ -418,6 +420,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     img = Image.open(f"record_10003/image_{114+len(previous_frames)}.png")
                     previous_frames.append(img)
                 elif True:
+                    assert False
                     previous_frames.append(next_frame_append)
                 #previous_frames = []
                 
