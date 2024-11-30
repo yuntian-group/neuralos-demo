@@ -135,7 +135,7 @@ def load_initial_images(width, height):
             img = Image.open(f"record_100/image_{i}.png").resize((width, height))
             initial_images.append(np.array(img))
     else:
-        assert False
+        #assert False
         for i in range(7):
             initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
     return initial_images
