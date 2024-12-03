@@ -19,6 +19,8 @@ app = FastAPI()
 # Mount the static directory to serve HTML, JavaScript, and CSS files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Add this at the top with other global variables
+all_click_positions = []  # Store all historical click positions
 
 def parse_action_string(action_str):
     """Convert formatted action string to x, y coordinates
@@ -79,6 +81,7 @@ def create_position_and_click_map(pos,action_type, image_height=48, image_width=
 
     leftclick_map = torch.zeros((1, image_height, image_width))
     if action_type == 'L':
+        print ('left click', x_scaled, y_scaled)
         leftclick_map[0, y_scaled, x_scaled] = 1.0
     
     
@@ -94,29 +97,38 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
 
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]], x_scaled=-1, y_scaled=-1) -> np.ndarray:
     pil_image = Image.fromarray(image)
-    #pil_image = Image.open('image_3.png')    
     draw = ImageDraw.Draw(pil_image)
-    flag = True
+    
+    # Draw all historical click positions
+    for click_x, click_y in all_click_positions:
+        x_draw = click_x   # Scale factor for display
+        y_draw = click_y 
+        # Draw historical clicks as red circles
+        draw.ellipse([x_draw-4, y_draw-4, x_draw+4, y_draw+4], fill=(255, 0, 0))
+    
+    # Draw current trace
     prev_x, prev_y = None, None
     for i, (action_type, position) in enumerate(previous_actions):
-        color = (255, 0, 0) if action_type == "move" else (0, 255, 0)
         x, y = position
-        if x == 0 and y == 0 and flag:
+        if x == 0 and y == 0:
             continue
-        else:
-            flag = False
-        #if DEBUG:
-        #    x = x * 256 / 1024
-        #    y = y * 256 / 640
-        #draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
+            
+        x_draw = x
+        y_draw = y
         
+        # Draw movement positions as blue dots
+        draw.ellipse([x_draw-2, y_draw-2, x_draw+2, y_draw+2], fill=(0, 0, 255))
         
-        #if prev_x is not None:
-        #    #prev_x, prev_y = previous_actions[i-1][1]
-        #    draw.line([prev_x, prev_y, x, y], fill=color, width=1)
-        prev_x, prev_y = x, y
-    draw.ellipse([x_scaled*8-2, y_scaled*8-2, x_scaled*8+2, y_scaled*8+2], fill=(0, 255, 0))
-    #pil_image = pil_image.convert("RGB")
+        # Draw connecting lines
+        if prev_x is not None:
+            draw.line([prev_x, prev_y, x_draw, y_draw], fill=(0, 255, 0), width=1)
+        prev_x, prev_y = x_draw, y_draw
+    
+    # Draw current position
+    if x_scaled >= 0 and y_scaled >= 0:
+        x_current = x_scaled * 8
+        y_current = y_scaled * 8
+        draw.ellipse([x_current-3, y_current-3, x_current+3, y_current+3], fill=(0, 255, 0))
     
     return np.array(pil_image)
 
@@ -267,6 +279,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         if j == 1:
             x_scaled = x_scaled_j
             y_scaled = y_scaled_j
+        if action_type == 'L':
+            all_click_positions.append((x, y))
     
     #prompt = ''
     #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
@@ -283,11 +297,18 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Draw the trace of previous actions
     new_frame_with_trace = draw_trace(new_frame_denormalized, previous_actions, x_scaled, y_scaled)
     
+    # Track click positions
+    #x, y, action_type = parse_action_string(action_descriptions[-1])
+    
+    
     return new_frame_with_trace, new_frame_denormalized
 
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global all_click_positions  # Add this line
+    all_click_positions = []  # Reset at the start of each connection
+    
     client_id = id(websocket)  # Use a unique identifier for each connection
     print(f"New WebSocket connection: {client_id}")
     await websocket.accept()
