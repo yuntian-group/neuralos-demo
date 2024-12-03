@@ -285,6 +285,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #prompt = ''
     #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
     print(prompt)
+    prompt = prompt.replace('L', 'N')
+    print ('changing L to N')
     
     # Generate the next frame
     new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_maps=pos_maps, leftclick_maps=leftclick_maps)
