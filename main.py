@@ -368,7 +368,7 @@ async def websocket_endpoint(websocket: WebSocket):
                          #'N + 0 2 0 5 : + 0 1 3 3']
         previous_actions = []
         for action in debug_actions[-8:]:
-            action = action.replace('1 1', '0 4')
+            #action = action.replace('1 1', '0 4')
             x, y, action_type = parse_action_string(action)
             previous_actions.append((action_type, (x, y)))
         positions = [
@@ -440,6 +440,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
                 if not DEBUG_TEACHER_FORCING:
+                    x, y = mouse_position
+                    mouse_position = (x//8, y//8)
                     previous_actions.append((action_type, mouse_position))
                 # Log the start time
                 start_time = time.time()
@@ -454,8 +456,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 if True and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
                     previous_frames.append(img)
-                elif True:
-                    assert False
+                else:
+                    #assert False
                     previous_frames.append(next_frame_append)
                 previous_frames = []
                 
