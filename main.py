@@ -130,9 +130,9 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
     if x_scaled >= 0 and y_scaled >= 0:
         x_current = x_scaled * 8
         y_current = y_scaled * 8
-        if not DEBUG_TEACHER_FORCING:
-            x_current = x_current *8
-            y_current = y_current *8
+        #if not DEBUG_TEACHER_FORCING:
+        #    x_current = x_current *8
+        #    y_current = y_current *8
         print ('x_current, y_current', x_current, y_current)
         draw.ellipse([x_current-3, y_current-3, x_current+3, y_current+3], fill=(0, 255, 0))
     else:
@@ -430,7 +430,7 @@ async def websocket_endpoint(websocket: WebSocket):
             action_type = 'N'
                 
         # Format action string
-        previous_actions.append((action_type, (x, y)))
+        previous_actions.append((action_type, (x*8, y*8)))
     try:
         while True:
             try:
@@ -469,7 +469,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 #previous_actions = [(action_type, mouse_position)]
                 if not DEBUG_TEACHER_FORCING:
                     x, y = mouse_position
-                    mouse_position = (x//8, y//8)
+                    #mouse_position = (x//8, y//8)
                     previous_actions.append((action_type, mouse_position))
                 # Log the start time
                 start_time = time.time()
