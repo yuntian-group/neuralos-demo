@@ -439,6 +439,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 action_type = data.get("action_type")
                 mouse_position = data.get("mouse_position")
+                if np.random.random() < 0.5:
+                    print ('setting left click')
+                    action_type = 'L'
+                
                 
                 # Store the actions
                 if DEBUG:
