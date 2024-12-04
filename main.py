@@ -401,12 +401,12 @@ async def websocket_endpoint(websocket: WebSocket):
                          'N + 0 0 8 2 : + 0 1 5 1']
         positions = positions[3:]
 #positions = positions[:4]
-    position = positions[0]
-    positions = positions[1:]
-    x, y, action_type = parse_action_string(position)
-    mouse_position = (x, y)
-                
-    previous_actions.append((action_type, mouse_position))
+        position = positions[0]
+        positions = positions[1:]
+        x, y, action_type = parse_action_string(position)
+        mouse_position = (x, y)
+                    
+        previous_actions.append((action_type, mouse_position))
     if not DEBUG_TEACHER_FORCING:
         previous_actions = []
     try:
