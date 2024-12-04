@@ -133,6 +133,7 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
         if not DEBUG_TEACHER_FORCING:
             x_current = x_current *8
             y_current = y_current *8
+        print ('x_current, y_current', x_current, y_current)
         draw.ellipse([x_current-3, y_current-3, x_current+3, y_current+3], fill=(0, 255, 0))
     
     return np.array(pil_image)
@@ -442,9 +443,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 action_type = data.get("action_type")
                 mouse_position = data.get("mouse_position")
-                if np.random.random() < 0.7:
+                if np.random.random() < 0.9:
                     print ('setting left click')
                     action_type = 'left_click'
+                else:
+                    print ('not setting left click')
                 
                 
                 # Store the actions
