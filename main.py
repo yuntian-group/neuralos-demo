@@ -82,7 +82,9 @@ def create_position_and_click_map(pos,action_type, image_height=48, image_width=
     leftclick_map = torch.zeros((1, image_height, image_width))
     if action_type == 'L':
         print ('left click', x_scaled, y_scaled)
-        leftclick_map[0, y_scaled, x_scaled] = 1.0
+        print ('skipped')
+        if False:
+            leftclick_map[0, y_scaled, x_scaled] = 1.0
     
     
     return pos_map, leftclick_map, x_scaled, y_scaled
@@ -285,8 +287,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #prompt = ''
     #prompt = "1~1 0~0 0~0 0~0 0~0 0~0 0~0 0~0"
     print(prompt)
-    prompt = prompt.replace('L', 'N')
-    print ('changing L to N')
+    #prompt = prompt.replace('L', 'N')
+    #print ('changing L to N')
     
     # Generate the next frame
     new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_maps=pos_maps, leftclick_maps=leftclick_maps)
