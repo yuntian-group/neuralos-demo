@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = True
+DEBUG_TEACHER_FORCING = False
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -407,6 +407,8 @@ async def websocket_endpoint(websocket: WebSocket):
     mouse_position = (x, y)
                 
     previous_actions.append((action_type, mouse_position))
+    if not DEBUG_TEACHER_FORCING:
+        previous_actions = []
     try:
         while True:
             try:
@@ -437,7 +439,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 if False:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
-                
+                if not DEBUG_TEACHER_FORCING:
+                    previous_actions.append((action_type, mouse_position))
                 # Log the start time
                 start_time = time.time()
                 

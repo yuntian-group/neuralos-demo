@@ -57,6 +57,12 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         print ('finished sleeping')
         DDPM = False
         DDPM = True
+
+        DEBUG = True
+        if DEBUG:
+            c['c_concat'] = c['c_concat']*0
+            print ('utils prompt', prompt)
+
         if DDPM:
             samples_ddim = model.p_sample_loop(cond=c, shape=[1, 4, 48, 64], return_intermediates=False, verbose=True)
         else:
@@ -68,8 +74,13 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #                                 unconditional_guidance_scale=5.0,
         #                                 unconditional_conditioning=uc,
         #                                 eta=0)
-        
-        x_samples_ddim = model.decode_first_stage(samples_ddim)
+        if DEBUG:
+            print ('samples_ddim.shape', samples_ddim.shape)
+            x_samples_ddim = samples_ddim[:, :3]
+            # upsample to 512 x 368
+            x_samples_ddim = torch.nn.functional.interpolate(x_samples_ddim, size=(512, 368), mode='bilinear')
+        else:
+            x_samples_ddim = model.decode_first_stage(samples_ddim)
         #x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3, -1, -1)
         #x_samples_ddim = model.decode_first_stage(x_samples_ddim)
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
