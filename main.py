@@ -130,6 +130,9 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
     if x_scaled >= 0 and y_scaled >= 0:
         x_current = x_scaled * 8
         y_current = y_scaled * 8
+        if not DEBUG_TEACHER_FORCING:
+            x_current = x_current *8
+            y_current = y_current *8
         draw.ellipse([x_current-3, y_current-3, x_current+3, y_current+3], fill=(0, 255, 0))
     
     return np.array(pil_image)
