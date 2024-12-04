@@ -221,7 +221,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     
     for action_type, pos in previous_actions: #[-8:]:
-        print ('here3', action_type, pos)
+        #print ('here3', action_type, pos)
         if action_type == 'move':
             action_type = 'N'
         if action_type == 'left_click':
@@ -439,9 +439,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 action_type = data.get("action_type")
                 mouse_position = data.get("mouse_position")
-                if np.random.random() < 0.5:
+                if np.random.random() < 0.7:
                     print ('setting left click')
-                    action_type = 'L'
+                    action_type = 'left_click'
                 
                 
                 # Store the actions
