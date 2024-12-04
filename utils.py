@@ -77,8 +77,8 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         if DEBUG:
             print ('samples_ddim.shape', samples_ddim.shape)
             x_samples_ddim = samples_ddim[:, :3]
-            # upsample to 512 x 368
-            x_samples_ddim = torch.nn.functional.interpolate(x_samples_ddim, size=(512, 368), mode='bilinear')
+            # upsample to 512 x 384
+            x_samples_ddim = torch.nn.functional.interpolate(x_samples_ddim, size=(384, 512), mode='bilinear')
         else:
             x_samples_ddim = model.decode_first_stage(samples_ddim)
         #x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3, -1, -1)

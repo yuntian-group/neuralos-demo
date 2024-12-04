@@ -135,6 +135,8 @@ def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]],
             y_current = y_current *8
         print ('x_current, y_current', x_current, y_current)
         draw.ellipse([x_current-3, y_current-3, x_current+3, y_current+3], fill=(0, 255, 0))
+    else:
+        assert False
     
     return np.array(pil_image)
 
