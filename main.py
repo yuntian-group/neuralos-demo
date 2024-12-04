@@ -82,8 +82,8 @@ def create_position_and_click_map(pos,action_type, image_height=48, image_width=
     leftclick_map = torch.zeros((1, image_height, image_width))
     if action_type == 'L':
         print ('left click', x_scaled, y_scaled)
-        print ('skipped')
-        if False:
+        #print ('skipped')
+        if True:
             leftclick_map[0, y_scaled, x_scaled] = 1.0
     
     
