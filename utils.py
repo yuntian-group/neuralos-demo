@@ -56,7 +56,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #time.sleep(120)
         print ('finished sleeping')
         DDPM = False
-        DDPM = False
+        DDPM = True
 
         DEBUG = True
         if DEBUG:

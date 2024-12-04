@@ -409,6 +409,22 @@ async def websocket_endpoint(websocket: WebSocket):
         previous_actions.append((action_type, mouse_position))
     if not DEBUG_TEACHER_FORCING:
         previous_actions = []
+    
+    for t in range(15):  # Generate 15 actions
+        # Random movement
+        x = np.random.randint(0, 64)
+        y = np.random.randint(0, 48)
+        #x = max(0, min(63, x + dx))
+        #y = max(0, min(47, y + dy))
+                
+        # Random click with 20% probability
+        if np.random.random() < 0.2:
+            action_type = 'L'
+        else:
+            action_type = 'N'
+                
+        # Format action string
+        previous_actions.append((action_type, (x, y)))
     try:
         while True:
             try:
