@@ -61,7 +61,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         DEBUG = True
         if DEBUG:
             c['c_concat'] = c['c_concat']*0
-            print ('utils prompt', prompt)
+            print ('utils prompt', prompt, c['c_concat'].shape, c.keys())
 
         if DDPM:
             samples_ddim = model.p_sample_loop(cond=c, shape=[1, 4, 48, 64], return_intermediates=False, verbose=True)
