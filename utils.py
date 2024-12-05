@@ -22,7 +22,7 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     print(f"Loading model from {model_name}")
     # Load the state dict
     state_dict = torch.load(model_file, map_location='cpu')
-    model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(state_dict, strict=True)
     
     model.to(device)
     model.eval()
