@@ -469,6 +469,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 #previous_actions = [(action_type, mouse_position)]
                 if not DEBUG_TEACHER_FORCING:
                     x, y = mouse_position
+                    x = x//8 * 8
+                    y = y // 8 * 8
                     #mouse_position = (x//8, y//8)
                     previous_actions.append((action_type, mouse_position))
                 # Log the start time
