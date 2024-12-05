@@ -471,6 +471,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     x, y = mouse_position
                     x = x//8 * 8
                     y = y // 8 * 8
+                    assert x % 8 == 0
+                    assert y % 8 == 0
+                    mouse_position = (x, y)
                     #mouse_position = (x//8, y//8)
                     previous_actions.append((action_type, mouse_position))
                 # Log the start time
