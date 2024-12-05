@@ -450,7 +450,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     action_type = 'left_click'
                 else:
                     print ('not setting left click')
-                action_type = 'N'
+                action_type = 'move'
                 print ('setting normal move')
                 
                 
