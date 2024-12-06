@@ -224,6 +224,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prev_y = 0
     #print ('here')
 
+    prompt = 'N + 0 2 4 0 : + 0 0 3 2 N + 0 1 6 0 : + 0 0 2 4 N + 0 1 9 2 : + 0 0 9 6 N + 0 1 1 2 : + 0 0 9 6 N + 0 1 5 2 : + 0 1 7 6 N + 0 0 0 0 : + 0 2 3 2 N + 0 3 2 0 : + 0 2 7 2 N + 0 4 6 4 : + 0 3 2 8'
+    previous_actions = [('move', (240, 32)), ('move', (160, 24)), ('move', (192, 96)), ('move', (112, 96)), ('move', (152, 176)), ('move', (0, 232)), ('move', (320, 272)), ('move', (464, 328))]
     
     
     for action_type, pos in previous_actions: #[-8:]:
