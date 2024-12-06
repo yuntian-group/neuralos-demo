@@ -37,6 +37,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #uc = model.enc_concat_seq(uc, u_dict, 'c_concat')
         
         c_dict = {'c_crossattn': prompt, 'c_concat': image_sequence}
+        model.eval()
         c = model.get_learned_conditioning(c_dict)
         print (c['c_crossattn'].shape)
         print (c['c_crossattn'][0])
