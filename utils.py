@@ -8,6 +8,7 @@ from huggingface_hub import hf_hub_download
 import json
 import os
 import time
+DEBUG = True
 
 def load_model_from_config(config_path, model_name, device='cuda'):
     # Load the config file
@@ -64,7 +65,6 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         DDPM = False
         DDPM = True
 
-        DEBUG = True
         if DEBUG:
             #c['c_concat'] = c['c_concat']*0
             print ('utils prompt', prompt, c['c_concat'].shape, c.keys())
