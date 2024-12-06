@@ -84,7 +84,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
             # upsample to 512 x 384
             #x_samples_ddim = torch.nn.functional.interpolate(x_samples_ddim, size=(384, 512), mode='bilinear')
             # create a 512 x 384 image and paste the samples_ddim into the center
-            x_samples_ddim = torch.zeros((1, 3, 512, 384))
+            x_samples_ddim = torch.zeros((1, 3, 384, 512))
             x_samples_ddim[:, :, 128:128+48, 160:160+64] = samples_ddim[:, :3]
         else:
             x_samples_ddim = model.decode_first_stage(samples_ddim)
