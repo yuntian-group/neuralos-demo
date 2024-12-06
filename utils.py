@@ -54,6 +54,8 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
             pos_map = pos_maps[0]
             leftclick_map = torch.cat(leftclick_maps, dim=0)
             print (pos_maps[0].shape, c['c_concat'].shape, leftclick_map.shape)
+            if DEBUG:
+                c['c_concat'] = c['c_concat']*0
             c['c_concat'] = torch.cat([c['c_concat'][:, :, :, :], pos_maps[0].to(c['c_concat'].device).unsqueeze(0), leftclick_map.to(c['c_concat'].device).unsqueeze(0)], dim=1)
 
         print ('sleeping')
@@ -64,8 +66,10 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
 
         DEBUG = True
         if DEBUG:
-            c['c_concat'] = c['c_concat']*0
+            #c['c_concat'] = c['c_concat']*0
             print ('utils prompt', prompt, c['c_concat'].shape, c.keys())
+            print (c['c_concat'].nonzero())
+            #print (c['c_concat'][0, 0, :, :])
 
         if DDPM:
             samples_ddim = model.p_sample_loop(cond=c, shape=[1, 4, 48, 64], return_intermediates=False, verbose=True)
