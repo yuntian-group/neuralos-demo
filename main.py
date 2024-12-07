@@ -224,7 +224,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     prev_y = 0
     #print ('here')
 
-    if True:
+    if False:
         prompt = 'N + 0 4 1 6 : + 0 3 2 0 L + 0 2 0 0 : + 0 1 7 6 N + 0 3 8 4 : + 0 0 4 8 N + 0 3 6 0 : + 0 2 5 6 N + 0 3 6 8 : + 0 0 1 6 N + 0 0 3 2 : + 0 1 0 4 L + 0 2 8 0 : + 0 0 4 0 L + 0 5 0 4 : + 0 0 7 2'
         previous_actions = [('move', (416, 320)), ('left_click', (200, 176)), ('move', (384, 48)), ('move', (360, 256)), ('move', (368, 16)), ('move', (32, 104)), ('left_click', (280, 40)), ('left_click', (504, 72))]
         prompt = 'N + 0 3 4 4 : + 0 3 2 0 N + 0 4 8 0 : + 0 1 2 8 N + 0 4 4 8 : + 0 3 6 0 N + 0 4 4 8 : + 0 0 6 4 N + 0 4 6 4 : + 0 3 3 6 N + 0 0 2 4 : + 0 1 3 6 N + 0 1 2 8 : + 0 2 8 0 N + 0 4 4 0 : + 0 0 4 8'
@@ -235,7 +235,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         previous_actions = [('move', (16, 328)), ('move', (304, 96)), ('move', (240, 192)), ('move', (152, 56)), ('left_click', (288, 176)), ('left_click', (56, 376)), ('move', (136, 360)), ('move', (112, 48))]
         prompt = 'L + 0 0 5 6 : + 0 1 2 8 N + 0 4 0 0 : + 0 0 6 4 N + 0 5 0 4 : + 0 1 2 8 N + 0 4 2 4 : + 0 1 2 0 N + 0 3 2 0 : + 0 1 0 4 N + 0 2 8 0 : + 0 1 0 4 N + 0 2 7 2 : + 0 1 0 4 N + 0 2 7 2 : + 0 1 0 4'
         previous_actions = [('left_click', (56, 128)), ('left_click', (400, 64)), ('move', (504, 128)), ('move', (424, 120)), ('left_click', (320, 104)), ('left_click', (280, 104)), ('move', (272, 104)), ('move', (272, 104))]
-    for action_type, pos in previous_actions: #[-8:]:
+    for action_type, pos in previous_actions[-8:]:
         #print ('here3', action_type, pos)
         if action_type == 'move':
             action_type = 'N'
