@@ -197,6 +197,7 @@ def format_action(action_str, is_padding=False, is_leftclick=False):
     
 def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 512, 384
+    all_click_positions = []
     initial_images = load_initial_images(width, height)
 
     # Prepare the image sequence for the model
@@ -325,8 +326,8 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global all_click_positions  # Add this line
-    all_click_positions = []  # Reset at the start of each connection
+    #global all_click_positions  # Add this line
+    #all_click_positions = []  # Reset at the start of each connection
     
     client_id = id(websocket)  # Use a unique identifier for each connection
     print(f"New WebSocket connection: {client_id}")
