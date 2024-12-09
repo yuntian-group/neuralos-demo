@@ -201,9 +201,11 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     initial_images = load_initial_images(width, height)
 
     # Prepare the image sequence for the model
+    assert len(initial_images) == 7
     image_sequence = previous_frames[-7:]  # Take the last 7 frames
     while len(image_sequence) < 7:
-        image_sequence.insert(0, initial_images[len(image_sequence)])
+        #image_sequence.insert(0, initial_images[len(image_sequence)])
+        image_sequence.append(initial_images[len(image_sequence)])
 
     # Convert the image sequence to a tensor and concatenate in the channel dimension
     image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence, target_range=(-1, 1)))
@@ -219,6 +221,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     
     # Process initial actions if there are not enough previous actions
     while len(previous_actions) < 8:
+        assert False
         x, y = map(int, initial_actions.pop(0).split(':'))
         previous_actions.insert(0, ("N", unnorm_coords(x, y)))
     prev_x = 0
