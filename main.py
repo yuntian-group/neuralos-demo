@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = False
+DEBUG_TEACHER_FORCING = True
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -426,18 +426,18 @@ async def websocket_endpoint(websocket: WebSocket):
     if not DEBUG_TEACHER_FORCING:
         previous_actions = []
     
-    for t in range(15):  # Generate 15 actions
+        for t in range(15):  # Generate 15 actions
         # Random movement
-        x = np.random.randint(0, 64)
-        y = np.random.randint(0, 48)
-        #x = max(0, min(63, x + dx))
-        #y = max(0, min(47, y + dy))
+            x = np.random.randint(0, 64)
+            y = np.random.randint(0, 48)
+            #x = max(0, min(63, x + dx))
+            #y = max(0, min(47, y + dy))
                 
-        # Random click with 20% probability
-        if np.random.random() < 0.2:
-            action_type = 'L'
-        else:
-            action_type = 'N'
+            # Random click with 20% probability
+            if np.random.random() < 0.2:
+                action_type = 'L'
+            else:
+                action_type = 'N'
                 
         # Format action string
         previous_actions.append((action_type, (x*8, y*8)))
@@ -465,7 +465,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 
                 # Store the actions
-                if DEBUG:
+                if False and DEBUG:
                     position = positions[0]
                     #positions = positions[1:]
                     #mouse_position = position.split('~')
@@ -498,12 +498,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                if True and DEBUG_TEACHER_FORCING:
+                if False and DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
                     previous_frames.append(img)
                 else:
                     #assert False
-                    previous_frames.append(next_frame_append)
+                    #previous_frames.append(next_frame_append)
+                    pass
                 previous_frames = []
                 
                 # Convert the numpy array to a base64 encoded image
