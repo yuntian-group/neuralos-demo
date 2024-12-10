@@ -509,7 +509,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     #assert False
                     #previous_frames.append(next_frame_append)
                     pass
-                previous_frames = []
+                #previous_frames = []
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
