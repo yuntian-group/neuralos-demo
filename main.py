@@ -425,7 +425,7 @@ async def websocket_endpoint(websocket: WebSocket):
         x, y, action_type = parse_action_string(position)
         mouse_position = (x, y)
                     
-        previous_actions.append((action_type, mouse_position))
+        #previous_actions.append((action_type, mouse_position))
     if not DEBUG_TEACHER_FORCING:
         previous_actions = []
     
@@ -474,11 +474,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     #mouse_position = position.split('~')
                     #mouse_position = [int(item) for item in mouse_position]
                     #mouse_position = '+ 0 8 1 5 : + 0 3 3 5'
-                if False and DEBUG_TEACHER_FORCING:
+                if DEBUG_TEACHER_FORCING:
                     position = positions[0]
                     positions = positions[1:]
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
+                    previous_actions.append((action_type, mouse_position))
                 if False:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
@@ -501,7 +502,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
                 print ('here4', len(previous_frames))
-                if False and DEBUG_TEACHER_FORCING:
+                if DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
                     previous_frames.append(img)
                 else:
