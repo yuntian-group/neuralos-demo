@@ -507,7 +507,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 print ('here4', len(previous_frames))
                 if DEBUG_TEACHER_FORCING:
                     img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
-                    previous_frames.append(img)
+                    previous_frames.append(np.array(img))
                 else:
                     #assert False
                     #previous_frames.append(next_frame_append)
