@@ -199,6 +199,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     width, height = 512, 384
     all_click_positions = []
     initial_images = load_initial_images(width, height)
+    print ('length of previous_frames', len(previous_frames))
 
     # Prepare the image sequence for the model
     assert len(initial_images) == 7
