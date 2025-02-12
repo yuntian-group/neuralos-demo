@@ -71,6 +71,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         print ('finished sleeping')
         DDPM = False
         DDPM = True
+        DDPM = False
 
         if DEBUG:
             #c['c_concat'] = c['c_concat']*0
