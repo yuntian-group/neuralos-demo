@@ -13,7 +13,7 @@ import os
 import time
 
 DEBUG = False
-DEBUG_TEACHER_FORCING = True
+DEBUG_TEACHER_FORCING = False
 app = FastAPI()
 
 # Mount the static directory to serve HTML, JavaScript, and CSS files
@@ -156,7 +156,7 @@ def load_initial_images(width, height):
             initial_images.append(np.array(img))
     else:
         #assert False
-        for i in range(7):
+        for i in range(32):
             initial_images.append(np.zeros((height, width, 3), dtype=np.uint8))
     return initial_images
 
@@ -202,10 +202,10 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     print ('length of previous_frames', len(previous_frames))
 
     # Prepare the image sequence for the model
-    assert len(initial_images) == 7
-    image_sequence = previous_frames[-7:]  # Take the last 7 frames
+    assert len(initial_images) == 32
+    image_sequence = previous_frames[-32:]  # Take the last 7 frames
     i = 1
-    while len(image_sequence) < 7:
+    while len(image_sequence) < 32:
         image_sequence.insert(0, initial_images[-i])
         i += 1
         #image_sequence.append(initial_images[len(image_sequence)])
@@ -213,18 +213,23 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Convert the image sequence to a tensor and concatenate in the channel dimension
     image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence, target_range=(-1, 1)))
     image_sequence_tensor = image_sequence_tensor.to(device)
+    data_mean = -0.54
+    data_std = 6.78
+    data_min = -27.681446075439453
+    data_max = 30.854148864746094
+    image_sequence_tensor = (image_sequence_tensor - data_mean) / data_std
     
     # Prepare the prompt based on the previous actions
     action_descriptions = []
     #initial_actions = ['901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '901:604', '921:604']
-    initial_actions = ['0:0'] * 7
+    initial_actions = ['0:0'] * 32
     #initial_actions = ['N N N N N : N N N N N'] * 7
     def unnorm_coords(x, y):
         return int(x), int(y) #int(x - (1920 - 256) / 2), int(y - (1080 - 256) / 2)
     
     # Process initial actions if there are not enough previous actions
-    while len(previous_actions) < 8:
-        assert False
+    while len(previous_actions) < 33:
+        #assert False
         x, y = map(int, initial_actions.pop(0).split(':'))
         previous_actions.insert(0, ("N", unnorm_coords(x, y)))
     prev_x = 0
@@ -242,7 +247,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         previous_actions = [('move', (16, 328)), ('move', (304, 96)), ('move', (240, 192)), ('move', (152, 56)), ('left_click', (288, 176)), ('left_click', (56, 376)), ('move', (136, 360)), ('move', (112, 48))]
         prompt = 'L + 0 0 5 6 : + 0 1 2 8 N + 0 4 0 0 : + 0 0 6 4 N + 0 5 0 4 : + 0 1 2 8 N + 0 4 2 4 : + 0 1 2 0 N + 0 3 2 0 : + 0 1 0 4 N + 0 2 8 0 : + 0 1 0 4 N + 0 2 7 2 : + 0 1 0 4 N + 0 2 7 2 : + 0 1 0 4'
         previous_actions = [('left_click', (56, 128)), ('left_click', (400, 64)), ('move', (504, 128)), ('move', (424, 120)), ('left_click', (320, 104)), ('left_click', (280, 104)), ('move', (272, 104)), ('move', (272, 104))]
-    for action_type, pos in previous_actions[-8:]:
+    for action_type, pos in previous_actions[-33:]:
         #print ('here3', action_type, pos)
         if action_type == 'move':
             action_type = 'N'
@@ -287,14 +292,14 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
         else:
             assert False
     
-    prompt = " ".join(action_descriptions[-8:])
+    prompt = " ".join(action_descriptions[-33:])
     print(prompt)
     #prompt = "N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N N N N N N : N N N N N + 0 3 0 7 : + 0 3 7 5"
     #x, y, action_type = parse_action_string(action_descriptions[-1])
     #pos_map, leftclick_map, x_scaled, y_scaled = create_position_and_click_map((x, y), action_type)
     leftclick_maps = []
     pos_maps = []
-    for j in range(1, 9):
+    for j in range(1, 34):
         print ('fsfs', action_descriptions[-j])
         x, y, action_type = parse_action_string(action_descriptions[-j])
         pos_map_j, leftclick_map_j, x_scaled_j, y_scaled_j = create_position_and_click_map((x, y), action_type)
@@ -318,6 +323,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     # Convert the generated frame to the correct format
     new_frame = new_frame.transpose(1, 2, 0)
     print (new_frame.max(), new_frame.min())
+    new_frame = new_frame * data_std + data_mean
     new_frame_denormalized = denormalize_image(new_frame, source_range=(-1, 1))
     
     # Draw the trace of previous actions
@@ -429,6 +435,7 @@ async def websocket_endpoint(websocket: WebSocket):
         #mouse_position = (x, y)
                     
         #previous_actions.append((action_type, mouse_position))
+    
     if not DEBUG_TEACHER_FORCING:
         previous_actions = []
     
@@ -448,6 +455,8 @@ async def websocket_endpoint(websocket: WebSocket):
         # Format action string
         previous_actions.append((action_type, (x*8, y*8)))
     try:
+        previous_actions = []
+        previous_frames = []
         while True:
             try:
                 # Receive user input with a timeout
@@ -483,36 +492,37 @@ async def websocket_endpoint(websocket: WebSocket):
                     x, y, action_type = parse_action_string(position)
                     mouse_position = (x, y)
                     previous_actions.append((action_type, mouse_position))
-                if False:
+                if True:
                     previous_actions.append((action_type, mouse_position))
                 #previous_actions = [(action_type, mouse_position)]
-                if not DEBUG_TEACHER_FORCING:
-                    x, y = mouse_position
-                    x = x//8 * 8
-                    y = y // 8 * 8
-                    assert x % 8 == 0
-                    assert y % 8 == 0
-                    mouse_position = (x, y)
-                    #mouse_position = (x//8, y//8)
-                    previous_actions.append((action_type, mouse_position))
+                #if not DEBUG_TEACHER_FORCING:
+                #    x, y = mouse_position
+                #    x = x//8 * 8
+                #    y = y // 8 * 8
+                #    assert x % 8 == 0
+                #    assert y % 8 == 0
+                #    mouse_position = (x, y)
+                #    #mouse_position = (x//8, y//8)
+                #    previous_actions.append((action_type, mouse_position))
                 # Log the start time
                 start_time = time.time()
                 
                 # Predict the next frame based on the previous frames and actions
-                if DEBUG_TEACHER_FORCING:
-                    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
-
+                #if DEBUG_TEACHER_FORCING:
+                #    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
+                print ('previous_actions', previous_actions)
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
                 # Load and append the corresponding ground truth image instead of model output
-                print ('here4', len(previous_frames))
-                if DEBUG_TEACHER_FORCING:
-                    img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
-                    previous_frames.append(np.array(img))
-                else:
-                    #assert False
-                    #previous_frames.append(next_frame_append)
-                    pass
-                #previous_frames = []
+                #print ('here4', len(previous_frames))
+                #if DEBUG_TEACHER_FORCING:
+                #    img = Image.open(f"record_10003/image_{117+len(previous_frames)}.png")
+                #    previous_frames.append(np.array(img))
+                #else:
+                #    assert False
+                #    previous_frames.append(next_frame_append)
+                #    pass
+                previous_frames = []
+                previous_actions = []
                 
                 # Convert the numpy array to a base64 encoded image
                 img = Image.fromarray(next_frame)
