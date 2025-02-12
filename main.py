@@ -217,7 +217,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     data_std = 6.78
     data_min = -27.681446075439453
     data_max = 30.854148864746094
-    #image_sequence_tensor = (image_sequence_tensor - data_mean) / data_std
+    image_sequence_tensor = (image_sequence_tensor - data_mean) / data_std
     
     # Prepare the prompt based on the previous actions
     action_descriptions = []
