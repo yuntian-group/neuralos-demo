@@ -52,6 +52,11 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         padding_mask = padding_mask.repeat(1, 4)  # Repeat mask 4 times for each projected channel
         print (image_sequence.shape, padding_mask.shape, c['c_concat'].shape)
         c['c_concat'] = c['c_concat'] * (~padding_mask.unsqueeze(-1).unsqueeze(-1))  # Zero out the corresponding features
+        data_mean = -0.54
+        data_std = 6.78
+        data_min = -27.681446075439453
+        data_max = 30.854148864746094
+        c['c_concat'] = (c['c_concat'] - data_mean) / data_std
         
         if pos_maps is not None:
             pos_map = pos_maps[0]
