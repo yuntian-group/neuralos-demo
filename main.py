@@ -512,7 +512,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 #    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
                 print ('previous_actions', previous_actions)
                 next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
-                feedback = False
+                feedback = True
                 if feedback:
                     previous_frames.append(next_frame_append)
                 else:
