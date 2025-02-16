@@ -168,6 +168,15 @@ def normalize_images(images, target_range=(-1, 1)):
         return images / 255.0
     else:
         raise ValueError(f"Unsupported target range: {target_range}")
+    
+def normalize_image(image, target_range=(-1, 1)):
+    image = image.astype(np.float32)
+    if target_range == (-1, 1):
+        return image / 127.5 - 1
+    elif target_range == (0, 1):
+        return image / 255.0
+    else:
+        raise ValueError(f"Unsupported target range: {target_range}")
 
 def denormalize_image(image, source_range=(-1, 1)):
     if source_range == (-1, 1):
@@ -195,28 +204,27 @@ def format_action(action_str, is_padding=False, is_leftclick=False):
     # Format with sign and proper spacing
     return prefix + " " + f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
     
-def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
+def predict_next_frame(previous_frames: List[np.ndarray, Tuple[str, np.ndarray]], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 512, 384
     all_click_positions = []
     initial_images = load_initial_images(width, height)
     print ('length of previous_frames', len(previous_frames))
+    padding_image = torch.zeros((height//8, width//8, 4)).to(device)
 
     # Prepare the image sequence for the model
     assert len(initial_images) == 32
     image_sequence = previous_frames[-32:]  # Take the last 7 frames
     i = 1
     while len(image_sequence) < 32:
-        image_sequence.insert(0, initial_images[-i])
+        image_sequence.insert(0, padding_image)
         i += 1
         #image_sequence.append(initial_images[len(image_sequence)])
-
+    
     # Convert the image sequence to a tensor and concatenate in the channel dimension
-    image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence, target_range=(-1, 1)))
-    image_sequence_tensor = image_sequence_tensor.to(device)
-    data_mean = -0.54
-    data_std = 6.78
-    data_min = -27.681446075439453
-    data_max = 30.854148864746094
+    #image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence_list, target_range=(-1, 1)))
+    #image_sequence_tensor = image_sequence_tensor.to(device)
+    image_sequence_tensor = torch.cat(image_sequence, dim=1)
+    
     #image_sequence_tensor = (image_sequence_tensor - data_mean) / data_std
     
     # Prepare the prompt based on the previous actions
@@ -318,7 +326,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #print ('changing L to N')
     
     # Generate the next frame
-    new_frame = sample_frame(model, prompt, image_sequence_tensor, pos_maps=pos_maps, leftclick_maps=leftclick_maps)
+    new_frame, new_frame_feedback = sample_frame(model, prompt, image_sequence_tensor, pos_maps=pos_maps, leftclick_maps=leftclick_maps)
     
     # Convert the generated frame to the correct format
     new_frame = new_frame.transpose(1, 2, 0)
@@ -333,7 +341,7 @@ def predict_next_frame(previous_frames: List[np.ndarray], previous_actions: List
     #x, y, action_type = parse_action_string(action_descriptions[-1])
     
     
-    return new_frame_with_trace, new_frame_denormalized
+    return new_frame_with_trace, new_frame_denormalized, new_frame_feedback
 
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
@@ -513,10 +521,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 #if DEBUG_TEACHER_FORCING:
                 #    print ('predicting', f"record_10003/image_{117+len(previous_frames)}.png")
                 print ('previous_actions', previous_actions)
-                next_frame, next_frame_append = predict_next_frame(previous_frames, previous_actions)
+                next_frame, next_frame_append, next_frame_feedback = predict_next_frame(previous_frames, previous_actions)
                 feedback = True
                 if feedback:
-                    previous_frames.append(next_frame_append)
+                    previous_frames.append(next_frame_feedback)
                 else:
                     #previous_frames = []
                     previous_actions = []

@@ -45,13 +45,13 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #print (c['c_crossattn'][0])
         print (prompt)
         c = {}
-        c = model.enc_concat_seq(c, c_dict, 'c_concat')
+        #c = model.enc_concat_seq(c, c_dict, 'c_concat')
         # Zero out the corresponding subtensors in c_concat for padding images
-        padding_mask = torch.isclose(image_sequence, torch.tensor(-1.0), rtol=1e-5, atol=1e-5).all(dim=(1, 2, 3)).unsqueeze(0)
-        print (padding_mask)
-        padding_mask = padding_mask.repeat(1, 4)  # Repeat mask 4 times for each projected channel
-        print (image_sequence.shape, padding_mask.shape, c['c_concat'].shape)
-        c['c_concat'] = c['c_concat'] * (~padding_mask.unsqueeze(-1).unsqueeze(-1))  # Zero out the corresponding features
+        #padding_mask = torch.isclose(image_sequence, torch.tensor(-1.0), rtol=1e-5, atol=1e-5).all(dim=(1, 2, 3)).unsqueeze(0)
+        #print (padding_mask)
+        #padding_mask = padding_mask.repeat(1, 4)  # Repeat mask 4 times for each projected channel
+        #print (image_sequence.shape, padding_mask.shape, c['c_concat'].shape)
+        #c['c_concat'] = c['c_concat'] * (~padding_mask.unsqueeze(-1).unsqueeze(-1))  # Zero out the corresponding features
         data_mean = -0.54
         data_std = 6.78
         data_min = -27.681446075439453
@@ -108,6 +108,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
             data_max = 30.854148864746094
             x_samples_ddim = samples_ddim
             x_samples_ddim = x_samples_ddim * data_std + data_mean
+            x_samples_ddim_feedback = x_samples_ddim
             x_samples_ddim = model.decode_first_stage(x_samples_ddim)
         print ('dfsf3')
         #x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3, -1, -1)
@@ -115,7 +116,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
         x_samples_ddim = torch.clamp(x_samples_ddim, min=-1.0, max=1.0)
         
-        return x_samples_ddim.squeeze(0).cpu().numpy()
+        return x_samples_ddim.squeeze(0).cpu().numpy(), x_samples_ddim_feedback.squeeze(0)
 
 # Global variables for model and device
 #model = None
