@@ -457,6 +457,8 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         previous_actions = []
         previous_frames = []
+        frames_since_update = 0
+        frame_times = []
         while True:
             try:
                 # Receive user input with a timeout
@@ -518,6 +520,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     #previous_frames = []
                     previous_actions = []
+                processing_time = time.time() - start_time
+                print(f"Frame processing time: {processing_time:.2f} seconds")
+                frame_times.append(processing_time)
+                frames_since_update += 1
+                print (f"Average frame processing time: {np.mean(frame_times):.2f} seconds")
+                fps = 1 / np.mean(frame_times)
+                print (f"FPS: {fps:.2f}")
+                
                 #previous_actions = []
                 # Load and append the corresponding ground truth image instead of model output
                 #print ('here4', len(previous_frames))
@@ -538,8 +548,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 img_str = base64.b64encode(buffered.getvalue()).decode()
                 
                 # Log the processing time
-                processing_time = time.time() - start_time
-                print(f"Frame processing time: {processing_time:.2f} seconds")
+                
                 
                 # Send the generated frame back to the client
                 await websocket.send_json({"image": img_str})
