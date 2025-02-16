@@ -44,7 +44,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         #print (c['c_crossattn'].shape)
         #print (c['c_crossattn'][0])
         print (prompt)
-        c = {'c_concat': image_sequence.unsqueeze(0)}
+        c = {'c_concat': image_sequence.transpose(0, 1).unsqueeze(0)}
         print (image_sequence.shape, c['c_concat'].shape)
         #c = model.enc_concat_seq(c, c_dict, 'c_concat')
         # Zero out the corresponding subtensors in c_concat for padding images
