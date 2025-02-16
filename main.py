@@ -524,6 +524,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 next_frame, next_frame_append, next_frame_feedback = predict_next_frame(previous_frames, previous_actions)
                 feedback = True
                 if feedback:
+                    print (f'appending feedback of shape {next_frame_feedback.shape}')
                     previous_frames.append(next_frame_feedback)
                 else:
                     #previous_frames = []
