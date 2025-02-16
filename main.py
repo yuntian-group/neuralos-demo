@@ -204,7 +204,7 @@ def format_action(action_str, is_padding=False, is_leftclick=False):
     # Format with sign and proper spacing
     return prefix + " " + f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
     
-def predict_next_frame(previous_frames: List[np.ndarray, Tuple[str, np.ndarray]], previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
+def predict_next_frame(previous_frames, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
     width, height = 512, 384
     all_click_positions = []
     initial_images = load_initial_images(width, height)
