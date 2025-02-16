@@ -223,7 +223,7 @@ def predict_next_frame(previous_frames, previous_actions: List[Tuple[str, List[i
     # Convert the image sequence to a tensor and concatenate in the channel dimension
     #image_sequence_tensor = torch.from_numpy(normalize_images(image_sequence_list, target_range=(-1, 1)))
     #image_sequence_tensor = image_sequence_tensor.to(device)
-    image_sequence_tensor = torch.cat(image_sequence, dim=1)
+    image_sequence_tensor = torch.cat(image_sequence, dim=-1)
     
     #image_sequence_tensor = (image_sequence_tensor - data_mean) / data_std
     
