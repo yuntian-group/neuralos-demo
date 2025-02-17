@@ -108,8 +108,8 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
             data_min = -27.681446075439453
             data_max = 30.854148864746094
             x_samples_ddim = samples_ddim
-            x_samples_ddim = x_samples_ddim * data_std + data_mean
             x_samples_ddim_feedback = x_samples_ddim
+            x_samples_ddim = x_samples_ddim * data_std + data_mean
             x_samples_ddim = model.decode_first_stage(x_samples_ddim)
         print ('dfsf3')
         #x_samples_ddim = pos_map.to(c['c_concat'].device).unsqueeze(0).expand(-1, 3, -1, -1)
