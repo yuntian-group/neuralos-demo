@@ -204,16 +204,21 @@ def format_action(action_str, is_padding=False, is_leftclick=False):
     
     # Format with sign and proper spacing
     return prefix + " " + f"{'+ ' if x >= 0 else '- '}{x_spaced} : {'+ ' if y >= 0 else '- '}{y_spaced}"
-    
-def predict_next_frame(previous_frames, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
-    width, height = 512, 384
-    all_click_positions = []
-    initial_images = load_initial_images(width, height)
-    print ('length of previous_frames', len(previous_frames))
-    padding_image = torch.zeros((height//8, width//8, 4)).to(device)
 
+width, height = 512, 384
+padding_image = torch.zeros((height//8, width//8, 4)).to(device)
+data_mean = -0.54
+data_std = 6.78
+data_min = -27.681446075439453
+data_max = 30.854148864746094
+padding_image = (padding_image - data_mean) / data_std
+
+def predict_next_frame(previous_frames, previous_actions: List[Tuple[str, List[int]]]) -> np.ndarray:
+    all_click_positions = []
+    #initial_images = load_initial_images(width, height)
+    #print ('length of previous_frames', len(previous_frames))
     # Prepare the image sequence for the model
-    assert len(initial_images) == 32
+    #assert len(initial_images) == 32
     image_sequence = previous_frames[-32:]  # Take the last 7 frames
     i = 1
     while len(image_sequence) < 32:
