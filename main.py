@@ -146,6 +146,7 @@ model = initialize_model("standard_challenging_context32_nocond_all.yaml", "yunt
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
+model = torch.compile(model)
 
 def load_initial_images(width, height):
     initial_images = []
