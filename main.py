@@ -98,6 +98,8 @@ def generate_random_image(width: int, height: int) -> np.ndarray:
     return np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
 
 def draw_trace(image: np.ndarray, previous_actions: List[Tuple[str, List[int]]], x_scaled=-1, y_scaled=-1) -> np.ndarray:
+    if True:
+        return image
     pil_image = Image.fromarray(image)
     draw = ImageDraw.Draw(pil_image)
     
