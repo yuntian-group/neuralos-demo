@@ -83,7 +83,7 @@ def sample_frame(model: LatentDiffusion, prompt: str, image_sequence: torch.Tens
         if DDPM:
             samples_ddim = model.p_sample_loop(cond=c, shape=[1, 4, 48, 64], return_intermediates=False, verbose=True)
         else:
-            samples_ddim, _ = sampler.sample(S=8,
+            samples_ddim, _ = sampler.sample(S=16,
                                          conditioning=c,
                                          batch_size=1,
                                          shape=[4, 48, 64],

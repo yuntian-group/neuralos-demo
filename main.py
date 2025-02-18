@@ -220,10 +220,10 @@ def predict_next_frame(previous_frames, previous_actions: List[Tuple[str, List[i
     # Prepare the image sequence for the model
     #assert len(initial_images) == 32
     image_sequence = previous_frames[-32:]  # Take the last 7 frames
-    i = 1
+    #i = 1
     while len(image_sequence) < 32:
         image_sequence.insert(0, padding_image)
-        i += 1
+        #i += 1
         #image_sequence.append(initial_images[len(image_sequence)])
     
     # Convert the image sequence to a tensor and concatenate in the channel dimension
