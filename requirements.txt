@@ -16,6 +16,7 @@ albumentations
 opencv-python
 pudb
 imageio
+protobuf==3.20.3
 imageio-ffmpeg
 torch-fidelity==0.3.0
 kornia
