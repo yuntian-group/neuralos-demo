@@ -11,6 +11,9 @@ WORKDIR /code
 COPY ./requirements.txt /code/requirements.txt
 
 # Install requirements.txt 
+
+RUN pip install pip==24.0
+
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 #RUN git clone https://github.com/da03/latent-diffusion.git
