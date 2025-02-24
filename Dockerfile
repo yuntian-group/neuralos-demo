@@ -1,6 +1,9 @@
 # Use the official Python 3.9 image
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
 
+
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
 # Set the working directory to /code
 WORKDIR /code
 
