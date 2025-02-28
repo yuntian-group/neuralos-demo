@@ -2,7 +2,7 @@ save_path: saved_standard_challenging_context32_nocond_cont_cont_all_cont_eval
 
 model:
   base_learning_rate: 8.0e-05
-  target: latent_diffusion.ldm.models.diffusion.ddpm.LatentDiffusion
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.0015
     linear_end: 0.0195
@@ -20,7 +20,7 @@ model:
     monitor: val/loss_simple_ema
 
     unet_config:
-      target: latent_diffusion.ldm.modules.diffusionmodules.openaimodel.UNetModel
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: [64, 48]
         in_channels: 8
@@ -41,7 +41,7 @@ model:
         transformer_depth: 1
 
     temporal_encoder_config:
-      target: latent_diffusion.ldm.modules.encoders.temporal_encoder.TemporalEncoder
+      target: ldm.modules.encoders.temporal_encoder.TemporalEncoder
       params:
         input_channels: 6
         hidden_size: 1024
@@ -52,7 +52,7 @@ model:
         output_width: 64
 
     first_stage_config:
-      target: latent_diffusion.ldm.models.autoencoder.AutoencoderKL
+      target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 4
         monitor: val/rec_loss
