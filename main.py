@@ -110,13 +110,10 @@ def process_frame(
 ) -> Tuple[torch.Tensor, np.ndarray, Any, Dict[str, float]]:
     """Process a single frame through the model."""
     timing = {}
-    print ('here5')
     # Temporal encoding
     start = time.perf_counter()
-    print ('here6')
     output_from_rnn, hidden_states = model.temporal_encoder.forward_step(inputs)
     timing['temporal_encoder'] = time.perf_counter() - start
-    print ('here7')
     
     # UNet sampling
     start = time.perf_counter()
@@ -129,16 +126,13 @@ def process_frame(
         verbose=False
     )
     timing['unet'] = time.perf_counter() - start
-    print ('here8')
     
     # Decoding
     start = time.perf_counter()
     sample = sample_latent * DATA_NORMALIZATION['std'] + DATA_NORMALIZATION['mean']
     sample = model.decode_first_stage(sample)
-    print ('here9')
     sample = sample.squeeze(0).clamp(-1, 1)
     timing['decode'] = time.perf_counter() - start
-    print ('here10')
     
     # Convert to image
     sample_img = ((sample[:3].transpose(0,1).transpose(1,2).cpu().float().numpy() + 1) * 127.5).astype(np.uint8)
@@ -181,24 +175,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_right_click = data.get("is_right_click")
                 keys_down_list = data.get("keys_down", [])  # Get as list
                 keys_up_list = data.get("keys_up", [])
-                
+                print (f'x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
                 # Update the set based on the received data
                 for key in keys_down_list:
                     keys_down.add(key)
                 for key in keys_up_list:
                     if key in keys_down:  # Check if key exists to avoid KeyError
                         keys_down.remove(key)
-                print ('here1')
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
-                print ('here2')
                 previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - start_frame
-                print ('here3') 
                 img = Image.fromarray(sample_img)
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
-                print ('here4')
                 
                 # Send the generated frame back to the client
                 await websocket.send_json({"image": img_str})
