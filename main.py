@@ -22,7 +22,7 @@ DATA_NORMALIZATION = {
     'mean': -0.54,
     'std': 6.78,
 }
-LATENT_DIMS = (1, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8, 4)
+LATENT_DIMS = (4, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Initialize the model at the start of your application
