@@ -96,6 +96,7 @@ def prepare_model_inputs(
         'key_events': torch.zeros(len(itos), dtype=torch.long).to(device)
     }
     for key in keys_down:
+        key = key.lower()
         inputs['key_events'][stoi[key]] = 1
     
     if hidden_states is not None:
