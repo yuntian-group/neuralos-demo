@@ -45,10 +45,11 @@
                 if (data.type === "heartbeat_response") {
                     console.log("Heartbeat response received");
                 } else if (data.image) {
-                    const img = new Image();
+                    let img = new Image();
                     img.onload = function() {
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        isProcessing = false; // Allow new inputs after drawing the image
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        //isProcessing = false; // Reset the processing flag when we get a response
                     };
                     img.src = 'data:image/png;base64,' + data.image;
                 }
@@ -83,19 +84,30 @@
         let lastSentPosition = null;
         let lastSentTime = 0;
         const SEND_INTERVAL = 50; // Send updates every 50ms
+        
+        // Track currently pressed keys
+        const pressedKeys = new Set();
 
-        function sendMousePosition(x, y, forceUpdate = false) {
+        function sendInputState(x, y, isLeftClick = false, isRightClick = false) {
             const currentTime = Date.now();
-            if (isConnected && !isProcessing && (forceUpdate || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
+            if (isConnected && (isLeftClick || isRightClick || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
                 try {
                     socket.send(JSON.stringify({
-                        "action_type": "move",
-                        "mouse_position": [x, y]
+                        "x": x,
+                        "y": y,
+                        "is_left_click": isLeftClick,
+                        "is_right_click": isRightClick,
+                        "keys_down": Array.from(pressedKeys),
+                        "keys_up": [],
                     }));
                     lastSentPosition = { x, y };
                     lastSentTime = currentTime;
+                    
+                    //if (isLeftClick || isRightClick) {
+                    //    isProcessing = true; // Block further inputs until response
+                    //}
                 } catch (error) {
-                    console.error("Error sending mouse position:", error);
+                    console.error("Error sending input state:", error);
                 }
             }
         }
@@ -113,7 +125,7 @@
             ctx.lineTo(x, y);
             ctx.stroke();
 
-            sendMousePosition(x, y);
+            sendInputState(x, y);
         });
 
         canvas.addEventListener("click", function (event) {
@@ -122,14 +134,59 @@
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
 
-            isProcessing = false;
+            sendInputState(x, y, true, false);
+        });
+
+        // Handle right clicks
+        canvas.addEventListener("contextmenu", function (event) {
+            event.preventDefault(); // Prevent default context menu
+            if (!isConnected || isProcessing) return;
+            
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+
+            sendInputState(x, y, false, true);
+        });
+
+        // Track keyboard events
+        document.addEventListener("keydown", function (event) {
+            if (!isConnected || isProcessing) return;
+            
+            // Add the key to our set of pressed keys
+            pressedKeys.add(event.key);
+            
+            // Get the current mouse position
+            let rect = canvas.getBoundingClientRect();
+            let x = lastSentPosition ? lastSentPosition.x : canvas.width / 2;
+            let y = lastSentPosition ? lastSentPosition.y : canvas.height / 2;
+            
+            sendInputState(x, y);
+        });
+
+        document.addEventListener("keyup", function (event) {
+            if (!isConnected) return;
+            
+            // Remove the key from our set of pressed keys
+            pressedKeys.delete(event.key);
+            
+            // Get the current mouse position
+            let rect = canvas.getBoundingClientRect();
+            let x = lastSentPosition ? lastSentPosition.x : canvas.width / 2;
+            let y = lastSentPosition ? lastSentPosition.y : canvas.height / 2;
+            
+            // For key up events, we send the key in the keys_up array
             try {
                 socket.send(JSON.stringify({
-                    "action_type": "left_click",
-                    "mouse_position": [x, y]
+                    "x": x,
+                    "y": y,
+                    "is_left_click": false,
+                    "is_right_click": false,
+                    "keys_down": Array.from(pressedKeys),
+                    "keys_up": [event.key],
                 }));
             } catch (error) {
-                console.error("Error sending click action:", error);
+                console.error("Error sending key up event:", error);
             }
         });
 
