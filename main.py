@@ -183,16 +183,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 for key in keys_up_list:
                     if key in keys_down:  # Check if key exists to avoid KeyError
                         keys_down.remove(key)
-
+                print ('here1')
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
-
+                print ('here2')
                 previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - start_frame
-    
+                print ('here3') 
                 img = Image.fromarray(sample_img)
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
+                print ('here4')
                 
                 # Send the generated frame back to the client
                 await websocket.send_json({"image": img_str})
