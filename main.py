@@ -110,11 +110,13 @@ def process_frame(
 ) -> Tuple[torch.Tensor, np.ndarray, Any, Dict[str, float]]:
     """Process a single frame through the model."""
     timing = {}
-    
+    print ('here5')
     # Temporal encoding
     start = time.perf_counter()
+    print ('here6')
     output_from_rnn, hidden_states = model.temporal_encoder.forward_step(inputs)
     timing['temporal_encoder'] = time.perf_counter() - start
+    print ('here7')
     
     # UNet sampling
     start = time.perf_counter()
@@ -127,13 +129,16 @@ def process_frame(
         verbose=False
     )
     timing['unet'] = time.perf_counter() - start
+    print ('here8')
     
     # Decoding
     start = time.perf_counter()
     sample = sample_latent * DATA_NORMALIZATION['std'] + DATA_NORMALIZATION['mean']
     sample = model.decode_first_stage(sample)
+    print ('here9')
     sample = sample.squeeze(0).clamp(-1, 1)
     timing['decode'] = time.perf_counter() - start
+    print ('here10')
     
     # Convert to image
     sample_img = ((sample[:3].transpose(0,1).transpose(1,2).cpu().float().numpy() + 1) * 127.5).astype(np.uint8)
