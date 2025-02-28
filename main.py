@@ -141,7 +141,13 @@ def process_frame(
     
     return sample_latent, sample_img, hidden_states, timing
 
-    
+def print_timing_stats(timing_info: Dict[str, float], frame_num: int):
+    """Print timing statistics for a frame."""
+    print(f"\nFrame {frame_num} timing (seconds):")
+    for key, value in timing_info.items():
+        print(f"  {key.title()}: {value:.4f}")
+    print(f"  FPS: {1.0/timing_info['total']:.2f}")
+
 # Serve the index.html file at the root URL
 @app.get("/")
 async def get():
@@ -185,6 +191,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - start_frame
+                
+                # Use the provided function to print timing statistics
+                print_timing_stats(timing_info, frame_num)
+                
                 img = Image.fromarray(sample_img)
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
