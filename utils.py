@@ -10,7 +10,7 @@ import os
 import time
 DEBUG = False
 
-def load_model_from_config(config_path, model_name, device='cuda'):
+def load_model_from_config(config_path, model_name, device='cuda', load=False):
     # Load the config file
     config = OmegaConf.load(config_path)
     
@@ -18,12 +18,12 @@ def load_model_from_config(config_path, model_name, device='cuda'):
     model = instantiate_from_config(config.model)
     
     # Download the model file from Hugging Face
-    model_file = hf_hub_download(repo_id=model_name, filename="model.safetensors", token=os.getenv('HF_TOKEN'))
-    
-    print(f"Loading model from {model_name}")
-    # Load the state dict
-    state_dict = torch.load(model_file, map_location='cpu')
-    model.load_state_dict(state_dict, strict=True)
+    if load:
+        model_file = hf_hub_download(repo_id=model_name, filename="model.safetensors", token=os.getenv('HF_TOKEN'))
+        print(f"Loading model from {model_name}")
+        # Load the state dict
+        state_dict = torch.load(model_file, map_location='cpu')
+        model.load_state_dict(state_dict, strict=True)
     
     model.to(device)
     model.eval()
