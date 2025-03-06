@@ -14,7 +14,8 @@ import time
 from typing import Any, Dict
 from ldm.models.diffusion.ddpm import LatentDiffusion, DDIMSampler
 
-
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 8
