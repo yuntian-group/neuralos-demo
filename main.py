@@ -28,7 +28,7 @@ LATENT_DIMS = (4, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
-model = initialize_model("config_rnn_measure_latency.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
