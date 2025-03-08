@@ -251,8 +251,9 @@ async def websocket_endpoint(websocket: WebSocket):
             else:
                 # No interesting events - just take the most recent movement
                 next_input = input_queue[-1]
+                skipped_count = len(input_queue) - 1  # We're processing one, so skipped = total - 1
                 input_queue = []
-                print(f"Processing latest movement (skipped {len(input_queue)} events)")
+                print(f"Processing latest movement (skipped {skipped_count} events)")
             
             # Process the selected input asynchronously
             asyncio.create_task(process_input(next_input))
