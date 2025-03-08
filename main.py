@@ -14,8 +14,8 @@ import time
 from typing import Any, Dict
 from ldm.models.diffusion.ddpm import LatentDiffusion, DDIMSampler
 
-#torch.backends.cuda.matmul.allow_tf32 = True
-#torch.backends.cudnn.allow_tf32 = True
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 8
@@ -167,6 +167,11 @@ async def websocket_endpoint(websocket: WebSocket):
         hidden_states = None
         keys_down = set()  # Initialize as an empty set
         frame_num = -1
+        
+        # Start timing for global FPS calculation
+        connection_start_time = time.perf_counter()
+        frame_count = 0
+        
         while True:
             try:
                 # Receive user input with a timeout
@@ -176,7 +181,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({"type": "heartbeat_response"})
                     continue
                 frame_num += 1
+                frame_count += 1  # Increment total frame counter
                 start_frame = time.perf_counter()
+                
+                # Calculate global FPS
+                total_elapsed = start_frame - connection_start_time
+                global_fps = frame_count / total_elapsed if total_elapsed > 0 else 0
+                
                 x = data.get("x")
                 y = data.get("y")
                 is_left_click = data.get("is_left_click")
@@ -196,6 +207,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Use the provided function to print timing statistics
                 print_timing_stats(timing_info, frame_num)
+                
+                # Print global FPS measurement
+                print(f"  Global FPS: {global_fps:.2f} (total: {frame_count} frames in {total_elapsed:.2f}s)")
                 
                 img = Image.fromarray(sample_img)
                 buffered = io.BytesIO()
@@ -217,5 +231,13 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"Error in WebSocket connection {client_id}: {e}")
     
     finally:
+        # Print final FPS statistics when connection ends
+        if frame_num >= 0:  # Only if we processed at least one frame
+            total_time = time.perf_counter() - connection_start_time
+            print(f"\nConnection {client_id} summary:")
+            print(f"  Total frames processed: {frame_count}")
+            print(f"  Total elapsed time: {total_time:.2f} seconds")
+            print(f"  Average FPS: {frame_count/total_time:.2f}")
+        
         print(f"WebSocket connection closed: {client_id}")
         #await websocket.close()  # Ensure the WebSocket is closed
