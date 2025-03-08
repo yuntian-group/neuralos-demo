@@ -10,7 +10,7 @@ import os
 import time
 DEBUG = False
 
-def load_model_from_config(config_path, model_name, device='cuda', load=False):
+def load_model_from_config(config_path, model_name, device='cuda', load=True):
     # Load the config file
     config = OmegaConf.load(config_path)
     
