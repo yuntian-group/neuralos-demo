@@ -172,14 +172,15 @@ async def websocket_endpoint(websocket: WebSocket):
         connection_start_time = time.perf_counter()
         frame_count = 0
         
-        while True:
+        # Input queue management
+        input_queue = []
+        is_processing = False
+        
+        async def process_input(data):
+            nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
+            
             try:
-                # Receive user input with a timeout
-                #data = await asyncio.wait_for(websocket.receive_json(), timeout=90000.0)
-                data = await websocket.receive_json()
-                if data.get("type") == "heartbeat":
-                    await websocket.send_json({"type": "heartbeat_response"})
-                    continue
+                is_processing = True
                 frame_num += 1
                 frame_count += 1  # Increment total frame counter
                 start_frame = time.perf_counter()
@@ -194,13 +195,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_right_click = data.get("is_right_click")
                 keys_down_list = data.get("keys_down", [])  # Get as list
                 keys_up_list = data.get("keys_up", [])
-                print (f'x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
+                print(f'x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
+                
                 # Update the set based on the received data
                 for key in keys_down_list:
                     keys_down.add(key)
                 for key in keys_up_list:
                     if key in keys_down:  # Check if key exists to avoid KeyError
                         keys_down.remove(key)
+                
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - start_frame
@@ -218,10 +221,60 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Send the generated frame back to the client
                 await websocket.send_json({"image": img_str})
+            finally:
+                is_processing = False
+                # Check if we have more inputs to process after this one
+                process_next_input()
+        
+        def process_next_input():
+            nonlocal input_queue
+            
+            if not input_queue or is_processing:
+                return
+            
+            # Find the most recent interesting input (click or key event)
+            interesting_indices = [i for i, data in enumerate(input_queue) 
+                                  if data.get("is_left_click") or 
+                                     data.get("is_right_click") or 
+                                     data.get("keys_down") or 
+                                     data.get("keys_up")]
+            
+            if interesting_indices:
+                # There are interesting events - take the most recent one
+                idx = interesting_indices[-1]
+                next_input = input_queue[idx]
+                
+                # Clear all inputs up to and including this one
+                input_queue = input_queue[idx+1:]
+                
+                print(f"Processing interesting input (skipped {idx} events)")
+            else:
+                # No interesting events - just take the most recent movement
+                next_input = input_queue[-1]
+                input_queue = []
+                print(f"Processing latest movement (skipped {len(input_queue)} events)")
+            
+            # Process the selected input asynchronously
+            asyncio.create_task(process_input(next_input))
+        
+        while True:
+            try:
+                # Receive user input
+                data = await websocket.receive_json()
+                
+                if data.get("type") == "heartbeat":
+                    await websocket.send_json({"type": "heartbeat_response"})
+                    continue
+                
+                # Add the input to our queue
+                input_queue.append(data)
+                
+                # If we're not currently processing, start processing this input
+                if not is_processing:
+                    process_next_input()
             
             except asyncio.TimeoutError:
                 print("WebSocket connection timed out")
-                #break  # Exit the loop on timeout
             
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
