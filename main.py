@@ -148,7 +148,7 @@ def print_timing_stats(timing_info: Dict[str, float], frame_num: int):
     print(f"\nFrame {frame_num} timing (seconds):")
     for key, value in timing_info.items():
         print(f"  {key.title()}: {value:.4f}")
-    print(f"  FPS: {1.0/timing_info['total']:.2f}")
+    print(f"  FPS: {1.0/timing_info['full_frame']:.2f}")
 
 # Serve the index.html file at the root URL
 @app.get("/")
