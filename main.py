@@ -269,6 +269,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Add the input to our queue
                 input_queue.append(data)
+                print (f"Input queue length: {len(input_queue)}")
                 
                 # If we're not currently processing, start processing this input
                 if not is_processing:
