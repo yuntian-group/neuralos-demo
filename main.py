@@ -220,7 +220,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Print global FPS measurement
                 print(f"  Global FPS: {global_fps:.2f} (total: {frame_count} frames in {total_elapsed:.2f}s)")
-                time.sleep(1)
+                time.sleep(10)
                 
                 img = Image.fromarray(sample_img)
                 buffered = io.BytesIO()
