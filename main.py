@@ -13,6 +13,7 @@ import os
 import time
 from typing import Any, Dict
 from ldm.models.diffusion.ddpm import LatentDiffusion, DDIMSampler
+import concurrent.futures
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -74,6 +75,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Add this at the top with other global variables
 
+# Create a thread pool executor
+thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
 def prepare_model_inputs(
     previous_frame: torch.Tensor,
     hidden_states: Any,
@@ -110,11 +114,20 @@ def prepare_model_inputs(
     return inputs
 
 @torch.no_grad()
-def process_frame(
+async def process_frame(
     model: LatentDiffusion,
     inputs: Dict[str, torch.Tensor]
 ) -> Tuple[torch.Tensor, np.ndarray, Any, Dict[str, float]]:
     """Process a single frame through the model."""
+    # Run the heavy computation in a separate thread
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        thread_executor,
+        lambda: _process_frame_sync(model, inputs)
+    )
+
+def _process_frame_sync(model, inputs):
+    """Synchronous version of process_frame that runs in a thread"""
     timing = {}
     # Temporal encoding
     start = time.perf_counter()
@@ -136,7 +149,10 @@ def process_frame(
     # Decoding
     start = time.perf_counter()
     sample = sample_latent * DATA_NORMALIZATION['std'] + DATA_NORMALIZATION['mean']
+    
+    # Use time.sleep(10) here since it's in a separate thread
     time.sleep(10)
+    
     sample = model.decode_first_stage(sample)
     sample = sample.squeeze(0).clamp(-1, 1)
     timing['decode'] = time.perf_counter() - start
@@ -212,7 +228,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 print(f"[{time.perf_counter():.3f}] Starting model inference...")
-                previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
+                previous_frame, sample_img, hidden_states, timing_info = await process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - process_start_time
                 
                 print(f"[{time.perf_counter():.3f}] Model inference complete. Queue size now: {input_queue.qsize()}")
