@@ -262,7 +262,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # Process the queue one item at a time
             while not input_queue.empty():
                 current_input = await input_queue.get()
-                input_queue.task_done()
+                #input_queue.task_done()
                 
                 # Always update the latest input
                 latest_input = current_input
@@ -306,6 +306,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # If we're not currently processing, start processing this input
                 if not is_processing:
                     print(f"[{receive_time:.3f}] Not currently processing, will call process_next_input()")
+                    is_processing = True
                     asyncio.create_task(process_next_input())
                 else:
                     print(f"[{receive_time:.3f}] Currently processing, new input queued for later")
