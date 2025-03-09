@@ -276,8 +276,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Process immediately if interesting
                 if is_interesting:
                     print(f"[{current_time:.3f}] Found interesting input (skipped {skipped} events)")
-                    asyncio.create_task(process_input(current_input))
-                    return
+                    process_input(current_input)
                 
                 # Otherwise, continue to the next item
                 skipped += 1
@@ -285,8 +284,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 # If this is the last item and no interesting inputs were found
                 if input_queue.empty():
                     print(f"[{current_time:.3f}] No interesting inputs, processing latest movement (skipped {skipped-1} events)")
-                    asyncio.create_task(process_input(latest_input))
-                    return
+                    process_input(latest_input)
+            is_processing = False
         
         while True:
             try:
