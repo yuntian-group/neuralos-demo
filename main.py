@@ -87,11 +87,15 @@ def prepare_model_inputs(
     time_step: int
 ) -> Dict[str, torch.Tensor]:
     """Prepare inputs for the model."""
+    # Clamp coordinates to valid ranges
+    x = min(max(0, x), SCREEN_WIDTH - 1) if x is not None else 0
+    y = min(max(0, y), SCREEN_HEIGHT - 1) if y is not None else 0
+    
     inputs = {
         'image_features': previous_frame.to(device),
         'is_padding': torch.BoolTensor([time_step == 0]).to(device),
-        'x': torch.LongTensor([x if x is not None else 0]).unsqueeze(0).to(device),
-        'y': torch.LongTensor([y if y is not None else 0]).unsqueeze(0).to(device),
+        'x': torch.LongTensor([x]).unsqueeze(0).to(device),
+        'y': torch.LongTensor([y]).unsqueeze(0).to(device),
         'is_leftclick': torch.BoolTensor([left_click]).unsqueeze(0).to(device),
         'is_rightclick': torch.BoolTensor([right_click]).unsqueeze(0).to(device),
         'key_events': torch.zeros(len(itos), dtype=torch.long).to(device)
@@ -182,7 +186,6 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 process_start_time = time.perf_counter()
                 print(f"[{process_start_time:.3f}] Starting to process input. Queue size before: {len(input_queue)}")
-                is_processing = True
                 frame_num += 1
                 frame_count += 1  # Increment total frame counter
                 
@@ -234,7 +237,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 process_next_input()
         
         def process_next_input():
-            nonlocal input_queue
+            nonlocal input_queue, is_processing
             
             current_time = time.perf_counter()
             if not input_queue:
@@ -244,6 +247,9 @@ async def websocket_endpoint(websocket: WebSocket):
             if is_processing:
                 print(f"[{current_time:.3f}] Already processing an input. Will check again later.")
                 return
+            
+            # Set is_processing to True BEFORE creating the task
+            is_processing = True
             
             print(f"[{current_time:.3f}] Processing next input. Queue size: {len(input_queue)}")
             
