@@ -176,8 +176,8 @@ async def websocket_endpoint(websocket: WebSocket):
         connection_start_time = time.perf_counter()
         frame_count = 0
         
-        # Input queue management
-        input_queue = []
+        # Input queue management - use asyncio.Queue instead of a list
+        input_queue = asyncio.Queue()
         is_processing = False
         
         async def process_input(data):
@@ -185,7 +185,8 @@ async def websocket_endpoint(websocket: WebSocket):
             
             try:
                 process_start_time = time.perf_counter()
-                print(f"[{process_start_time:.3f}] Starting to process input. Queue size before: {len(input_queue)}")
+                queue_size = input_queue.qsize()
+                print(f"[{process_start_time:.3f}] Starting to process input. Queue size before: {queue_size}")
                 frame_num += 1
                 frame_count += 1  # Increment total frame counter
                 
@@ -213,7 +214,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 previous_frame, sample_img, hidden_states, timing_info = process_frame(model, inputs)
                 timing_info['full_frame'] = time.perf_counter() - process_start_time
                 
-                print(f"[{time.perf_counter():.3f}] Model inference complete. Queue size now: {len(input_queue)}")
+                print(f"[{time.perf_counter():.3f}] Model inference complete. Queue size now: {input_queue.qsize()}")
                 # Use the provided function to print timing statistics
                 print_timing_stats(timing_info, frame_num)
                 
@@ -229,18 +230,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Send the generated frame back to the client
                 print(f"[{time.perf_counter():.3f}] Sending image to client...")
                 await websocket.send_json({"image": img_str})
-                print(f"[{time.perf_counter():.3f}] Image sent. Queue size before next_input: {len(input_queue)}")
+                print(f"[{time.perf_counter():.3f}] Image sent. Queue size before next_input: {input_queue.qsize()}")
             finally:
                 is_processing = False
-                print(f"[{time.perf_counter():.3f}] Processing complete. Queue size before checking next input: {len(input_queue)}")
+                print(f"[{time.perf_counter():.3f}] Processing complete. Queue size before checking next input: {input_queue.qsize()}")
                 # Check if we have more inputs to process after this one
-                process_next_input()
+                asyncio.create_task(process_next_input())
         
-        def process_next_input():
-            nonlocal input_queue, is_processing
+        async def process_next_input():
+            nonlocal is_processing
             
             current_time = time.perf_counter()
-            if not input_queue:
+            if input_queue.empty():
                 print(f"[{current_time:.3f}] No inputs to process. Queue is empty.")
                 return
             
@@ -251,30 +252,37 @@ async def websocket_endpoint(websocket: WebSocket):
             # Set is_processing to True BEFORE creating the task
             is_processing = True
             
-            print(f"[{current_time:.3f}] Processing next input. Queue size: {len(input_queue)}")
+            queue_size = input_queue.qsize()
+            print(f"[{current_time:.3f}] Processing next input. Queue size: {queue_size}")
             
-            # Find the most recent interesting input (click or key event)
-            interesting_indices = [i for i, data in enumerate(input_queue) 
-                                  if data.get("is_left_click") or 
-                                     data.get("is_right_click") or 
-                                     (data.get("keys_down") and len(data.get("keys_down")) > 0) or 
-                                     (data.get("keys_up") and len(data.get("keys_up")) > 0)]
+            # Collect all inputs for analysis
+            all_inputs = []
+            while not input_queue.empty():
+                all_inputs.append(await input_queue.get())
+                input_queue.task_done()
+            
+            # Find all interesting inputs
+            interesting_indices = [i for i, data in enumerate(all_inputs) 
+                              if data.get("is_left_click") or 
+                                 data.get("is_right_click") or 
+                                 (data.get("keys_down") and len(data.get("keys_down")) > 0) or 
+                                 (data.get("keys_up") and len(data.get("keys_up")) > 0)]
             
             if interesting_indices:
                 # There are interesting events - take the most recent one
                 idx = interesting_indices[-1]
-                next_input = input_queue[idx]
-                skipped = idx  # Number of events we're skipping
+                next_input = all_inputs[idx]
+                skipped = len(all_inputs) - 1  # We're processing one, so skipped = total - 1
                 
-                # Clear all inputs up to and including this one
-                input_queue = input_queue[idx+1:]
-                
-                print(f"[{current_time:.3f}] Processing interesting input (skipped {skipped} events). Queue size now: {len(input_queue)}")
+                # Put back any inputs after this one
+                for i in range(idx + 1, len(all_inputs)):
+                    await input_queue.put(all_inputs[i])
+                    
+                print(f"[{current_time:.3f}] Processing interesting input (skipped {skipped} events). Queue size now: {input_queue.qsize()}")
             else:
                 # No interesting events - just take the most recent movement
-                skipped = len(input_queue) - 1  # We're processing one, so skipped = total - 1
-                next_input = input_queue[-1]
-                input_queue = []
+                next_input = all_inputs[-1]
+                skipped = len(all_inputs) - 1
                 print(f"[{current_time:.3f}] Processing latest movement (skipped {skipped} events). Queue now empty.")
             
             # Process the selected input asynchronously
@@ -284,7 +292,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 # Receive user input
-                print(f"[{time.perf_counter():.3f}] Waiting for input... Queue size: {len(input_queue)}, is_processing: {is_processing}")
+                print(f"[{time.perf_counter():.3f}] Waiting for input... Queue size: {input_queue.qsize()}, is_processing: {is_processing}")
                 data = await websocket.receive_json()
                 receive_time = time.perf_counter()
                 
@@ -293,13 +301,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
                 
                 # Add the input to our queue
-                input_queue.append(data)
-                print(f"[{receive_time:.3f}] Received input. Queue size now: {len(input_queue)}")
+                await input_queue.put(data)
+                print(f"[{receive_time:.3f}] Received input. Queue size now: {input_queue.qsize()}")
                 
                 # If we're not currently processing, start processing this input
                 if not is_processing:
                     print(f"[{receive_time:.3f}] Not currently processing, will call process_next_input()")
-                    process_next_input()
+                    asyncio.create_task(process_next_input())
                 else:
                     print(f"[{receive_time:.3f}] Currently processing, new input queued for later")
             
