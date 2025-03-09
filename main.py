@@ -251,8 +251,10 @@ async def websocket_endpoint(websocket: WebSocket):
             finally:
                 is_processing = False
                 print(f"[{time.perf_counter():.3f}] Processing complete. Queue size before checking next input: {input_queue.qsize()}")
-                # Check if we have more inputs to process after this one TODO
-                #asyncio.create_task(process_next_input())
+                # Check if we have more inputs to process after this one
+                if not input_queue.empty():
+                    print(f"[{time.perf_counter():.3f}] Queue not empty, processing next input")
+                    asyncio.create_task(process_next_input())
         
         async def process_next_input():
             nonlocal is_processing
