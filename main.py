@@ -151,7 +151,7 @@ def _process_frame_sync(model, inputs):
     sample = sample_latent * DATA_NORMALIZATION['std'] + DATA_NORMALIZATION['mean']
     
     # Use time.sleep(10) here since it's in a separate thread
-    time.sleep(10)
+    #time.sleep(10)
     
     sample = model.decode_first_stage(sample)
     sample = sample.squeeze(0).clamp(-1, 1)
