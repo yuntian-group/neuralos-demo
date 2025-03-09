@@ -249,45 +249,44 @@ async def websocket_endpoint(websocket: WebSocket):
                 print(f"[{current_time:.3f}] Already processing an input. Will check again later.")
                 return
             
-            # Set is_processing to True BEFORE creating the task
+            # Set is_processing to True before proceeding
             is_processing = True
             
             queue_size = input_queue.qsize()
             print(f"[{current_time:.3f}] Processing next input. Queue size: {queue_size}")
             
-            # Collect all inputs for analysis
-            all_inputs = []
+            # Initialize variables to track progress
+            skipped = 0
+            latest_input = None
+            
+            # Process the queue one item at a time
             while not input_queue.empty():
-                all_inputs.append(await input_queue.get())
+                current_input = await input_queue.get()
                 input_queue.task_done()
-            
-            # Find all interesting inputs
-            interesting_indices = [i for i, data in enumerate(all_inputs) 
-                              if data.get("is_left_click") or 
-                                 data.get("is_right_click") or 
-                                 (data.get("keys_down") and len(data.get("keys_down")) > 0) or 
-                                 (data.get("keys_up") and len(data.get("keys_up")) > 0)]
-            
-            if interesting_indices:
-                # There are interesting events - take the most recent one
-                idx = interesting_indices[-1]
-                next_input = all_inputs[idx]
-                skipped = len(all_inputs) - 1  # We're processing one, so skipped = total - 1
                 
-                # Put back any inputs after this one
-                for i in range(idx + 1, len(all_inputs)):
-                    await input_queue.put(all_inputs[i])
-                    
-                print(f"[{current_time:.3f}] Processing interesting input (skipped {skipped} events). Queue size now: {input_queue.qsize()}")
-            else:
-                # No interesting events - just take the most recent movement
-                next_input = all_inputs[-1]
-                skipped = len(all_inputs) - 1
-                print(f"[{current_time:.3f}] Processing latest movement (skipped {skipped} events). Queue now empty.")
-            
-            # Process the selected input asynchronously
-            print(f"[{current_time:.3f}] Creating task to process input...")
-            asyncio.create_task(process_input(next_input))
+                # Always update the latest input
+                latest_input = current_input
+                
+                # Check if this is an interesting event
+                is_interesting = (current_input.get("is_left_click") or 
+                                  current_input.get("is_right_click") or 
+                                  (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or 
+                                  (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0))
+                
+                # Process immediately if interesting
+                if is_interesting:
+                    print(f"[{current_time:.3f}] Found interesting input (skipped {skipped} events)")
+                    asyncio.create_task(process_input(current_input))
+                    return
+                
+                # Otherwise, continue to the next item
+                skipped += 1
+                
+                # If this is the last item and no interesting inputs were found
+                if input_queue.empty():
+                    print(f"[{current_time:.3f}] No interesting inputs, processing latest movement (skipped {skipped-1} events)")
+                    asyncio.create_task(process_input(latest_input))
+                    return
         
         while True:
             try:
