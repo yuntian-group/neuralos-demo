@@ -24,6 +24,9 @@
         const MAX_RECONNECT_DELAY = 30000; // Maximum delay between reconnection attempts (30 seconds)
 
         let isProcessing = false;
+        
+        // Add flag to control trace visibility, default to false (hidden)
+        let showTrace = false;
 
         function connect() {
             socket = new WebSocket(`wss://${window.location.host}/ws`);
@@ -125,11 +128,13 @@
             let x = event.clientX - rect.left;
             let y = event.clientY - rect.top;
             
-            // Client-side prediction
-            ctx.beginPath();
-            ctx.moveTo(lastSentPosition ? lastSentPosition.x : x, lastSentPosition ? lastSentPosition.y : y);
-            ctx.lineTo(x, y);
-            ctx.stroke();
+            // Only draw the trace if showTrace is true
+            if (showTrace && lastSentPosition) {
+                ctx.beginPath();
+                ctx.moveTo(lastSentPosition.x, lastSentPosition.y);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
 
             sendInputState(x, y);
         });
