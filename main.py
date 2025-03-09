@@ -246,9 +246,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_processing = False
                 return
             
-            if is_processing:
-                print(f"[{current_time:.3f}] Already processing an input. Will check again later.")
-                return
+            #if is_processing:
+            #    print(f"[{current_time:.3f}] Already processing an input. Will check again later.")
+            #    return
             
             # Set is_processing to True before proceeding
             is_processing = True
