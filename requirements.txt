@@ -1,6 +1,7 @@
 fastapi
 requests
 sentencepiece
+matplotlib
 torch
 transformers
 uvicorn[standard]
