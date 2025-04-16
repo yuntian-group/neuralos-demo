@@ -30,7 +30,7 @@ NUM_SAMPLING_STEPS = 8
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
 DATA_NORMALIZATION = {'mean': torch.tensor(latent_stats['mean']).to(device), 'std': torch.tensor(latent_stats['std']).to(device)}
-LATENT_DIMS = latent_stats['latent_dims']
+LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
