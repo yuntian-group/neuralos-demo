@@ -17,21 +17,25 @@ import concurrent.futures
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 8
-DATA_NORMALIZATION = {
-    'mean': -0.54,
-    'std': 6.78,
-}
-LATENT_DIMS = (4, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+with open('latent_stats.json', 'r') as f:
+    latent_stats = json.load(f)
+DATA_NORMALIZATION = {'mean': torch.tensor(latent_stats['mean']).to(device), 'std': torch.tensor(latent_stats['std']).to(device)}
+LATENT_DIMS = latent_stats['latent_dims']
+
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
-model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
+#model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
 #model = torch.compile(model)
 
@@ -148,7 +152,7 @@ def _process_frame_sync(model, inputs):
     
     # Decoding
     start = time.perf_counter()
-    sample = sample_latent * DATA_NORMALIZATION['std'] + DATA_NORMALIZATION['mean']
+    sample = sample_latent * DATA_NORMALIZATION['std'].view(1, -1, 1, 1) + DATA_NORMALIZATION['mean'].view(1, -1, 1, 1)
     
     # Use time.sleep(10) here since it's in a separate thread
     #time.sleep(10)
