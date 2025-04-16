@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 import base64
 import io
+import json
 import asyncio
 from utils import initialize_model, sample_frame
 import torch
