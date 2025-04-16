@@ -41,7 +41,7 @@ model = model.to(device)
 #model = torch.compile(model)
 
 padding_image = torch.zeros(1, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8, 16).to(device)
-padding_image = (padding_image - DATA_NORMALIZATION['mean']).view(1, 1, 1, -1) / DATA_NORMALIZATION['std'].view(1, 1, 1, -1)
+padding_image = (padding_image - DATA_NORMALIZATION['mean'].view(1, 1, 1, -1)) / DATA_NORMALIZATION['std'].view(1, 1, 1, -1)
 
 # Valid keyboard inputs
 KEYS = ['\t', '\n', '\r', ' ', '!', '"', '#', '$', '%', '&', "'", '(',
