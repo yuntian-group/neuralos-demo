@@ -139,14 +139,19 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    sampler = DDIMSampler(model)
-    sample_latent, _ = sampler.sample(
-        S=NUM_SAMPLING_STEPS,
-        conditioning={'c_concat': output_from_rnn},
-        batch_size=1,
-        shape=LATENT_DIMS,
-        verbose=False
-    )
+    use_rnn = True
+    print (f"use_rnn: {use_rnn}")
+    if use_rnn:
+        sample_latent = output_from_rnn[:, :16]
+    else:
+        sampler = DDIMSampler(model)
+        sample_latent, _ = sampler.sample(
+            S=NUM_SAMPLING_STEPS,
+            conditioning={'c_concat': output_from_rnn},
+            batch_size=1,
+            shape=LATENT_DIMS,
+            verbose=False
+        )
     timing['unet'] = time.perf_counter() - start
     
     # Decoding
