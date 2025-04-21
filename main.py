@@ -113,9 +113,11 @@ def prepare_model_inputs(
     
     if hidden_states is not None:
         inputs['hidden_states'] = hidden_states
-        
-    print ('DEBUG MODE, REMOVING INPUTS')
-    del inputs['hidden_states']
+    DEBUG_MODE = True
+    if DEBUG_MODE:
+        print ('DEBUG MODE, REMOVING INPUTS')
+        if 'hidden_states' in inputs:
+            del inputs['hidden_states']
     return inputs
 
 @torch.no_grad()
