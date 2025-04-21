@@ -139,7 +139,7 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    use_rnn = True
+    use_rnn = False
     print (f"use_rnn: {use_rnn}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
