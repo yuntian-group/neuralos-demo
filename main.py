@@ -148,15 +148,18 @@ def _process_frame_sync(model, inputs):
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
-        NUM_SAMPLING_STEPS = 32
-        sampler = DDIMSampler(model)
-        sample_latent, _ = sampler.sample(
-            S=NUM_SAMPLING_STEPS,
-            conditioning={'c_concat': output_from_rnn},
-            batch_size=1,
-            shape=LATENT_DIMS,
-            verbose=False
-        )
+        NUM_SAMPLING_STEPS = 1000
+        if NUM_SAMPLING_STEPS >= 1000:
+            sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
+        else:
+            sampler = DDIMSampler(model)
+            sample_latent, _ = sampler.sample(
+                S=NUM_SAMPLING_STEPS,
+                conditioning={'c_concat': output_from_rnn},
+                batch_size=1,
+                shape=LATENT_DIMS,
+                verbose=False
+            )
     timing['unet'] = time.perf_counter() - start
     
     # Decoding
