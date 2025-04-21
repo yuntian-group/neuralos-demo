@@ -98,6 +98,9 @@ def prepare_model_inputs(
     # Clamp coordinates to valid ranges
     x = min(max(0, x), SCREEN_WIDTH - 1) if x is not None else 0
     y = min(max(0, y), SCREEN_HEIGHT - 1) if y is not None else 0
+    if DEBUG_MODE:
+        print ('DEBUG MODE, SETTING TIME STEP TO 0')
+        time_step = 0
     
     inputs = {
         'image_features': previous_frame.to(device),
