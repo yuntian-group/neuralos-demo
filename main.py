@@ -113,7 +113,7 @@ def prepare_model_inputs(
     
     if hidden_states is not None:
         inputs['hidden_states'] = hidden_states
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     if DEBUG_MODE:
         print ('DEBUG MODE, REMOVING INPUTS')
         if 'hidden_states' in inputs:
@@ -148,7 +148,7 @@ def _process_frame_sync(model, inputs):
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
-        NUM_SAMPLING_STEPS = 1000
+        NUM_SAMPLING_STEPS = 32
         if NUM_SAMPLING_STEPS >= 1000:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
