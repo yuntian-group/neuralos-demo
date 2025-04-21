@@ -113,7 +113,7 @@ def prepare_model_inputs(
     
     if hidden_states is not None:
         inputs['hidden_states'] = hidden_states
-    DEBUG_MODE = False
+    DEBUG_MODE = True
     if DEBUG_MODE:
         print ('DEBUG MODE, REMOVING INPUTS')
         if 'hidden_states' in inputs:
@@ -143,7 +143,7 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    use_rnn = True
+    use_rnn = False
     print (f"use_rnn: {use_rnn}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
