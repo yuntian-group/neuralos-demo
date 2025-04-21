@@ -22,7 +22,7 @@ torch.backends.cudnn.allow_tf32 = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
@@ -146,7 +146,7 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    use_rnn = False
+    use_rnn = True
     print (f"use_rnn: {use_rnn}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
