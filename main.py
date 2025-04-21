@@ -148,6 +148,7 @@ def _process_frame_sync(model, inputs):
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
+        NUM_SAMPLING_STEPS = 32
         sampler = DDIMSampler(model)
         sample_latent, _ = sampler.sample(
             S=NUM_SAMPLING_STEPS,
