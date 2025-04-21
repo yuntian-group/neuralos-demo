@@ -151,7 +151,7 @@ def _process_frame_sync(model, inputs):
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
-        NUM_SAMPLING_STEPS = 32
+        NUM_SAMPLING_STEPS = 8
         if NUM_SAMPLING_STEPS >= 1000:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
