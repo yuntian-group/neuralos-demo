@@ -22,6 +22,7 @@ torch.backends.cudnn.allow_tf32 = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+DEBUG_MODE = True
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
@@ -113,7 +114,6 @@ def prepare_model_inputs(
     
     if hidden_states is not None:
         inputs['hidden_states'] = hidden_states
-    DEBUG_MODE = True
     if DEBUG_MODE:
         print ('DEBUG MODE, REMOVING INPUTS')
         if 'hidden_states' in inputs:
@@ -245,6 +245,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 print(f"[{time.perf_counter():.3f}] Starting model inference...")
                 previous_frame, sample_img, hidden_states, timing_info = await process_frame(model, inputs)
+                if DEBUG_MODE:
+                    print (f"DEBUG MODE, REMOVING HIDDEN STATES")
+                    previous_frame = padding_image
                 timing_info['full_frame'] = time.perf_counter() - process_start_time
                 
                 print(f"[{time.perf_counter():.3f}] Model inference complete. Queue size now: {input_queue.qsize()}")
