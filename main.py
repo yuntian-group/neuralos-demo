@@ -22,7 +22,7 @@ torch.backends.cudnn.allow_tf32 = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
