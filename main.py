@@ -26,7 +26,7 @@ DEBUG_MODE = True
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
-NUM_SAMPLING_STEPS = 32
+NUM_SAMPLING_STEPS = 64
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
