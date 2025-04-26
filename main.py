@@ -131,6 +131,7 @@ def prepare_model_inputs(
             print ('DEBUG MODE_2, REMOVING HIDDEN STATES')
             if 'hidden_states' in inputs:
                 del inputs['hidden_states']
+    print (f'Time step: {time_step}')
     return inputs
 
 @torch.no_grad()
