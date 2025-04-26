@@ -263,6 +263,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     if frame_num > NUM_MAX_FRAMES-1:
                         print (f"DEBUG MODE_2, REMOVING HIDDEN STATES")
                         previous_frame = padding_image
+                        frame_num = 0
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 print(f"[{time.perf_counter():.3f}] Starting model inference...")
                 previous_frame, sample_img, hidden_states, timing_info = await process_frame(model, inputs)
