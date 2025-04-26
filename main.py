@@ -24,6 +24,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 DEBUG_MODE = False
 DEBUG_MODE_2 = True
+NUM_MAX_FRAMES = 2
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
@@ -103,7 +104,7 @@ def prepare_model_inputs(
         print ('DEBUG MODE, SETTING TIME STEP TO 0')
         time_step = 0
     if DEBUG_MODE_2:
-        if time_step > 1:
+        if time_step > NUM_MAX_FRAMES-1:
             print ('DEBUG MODE_2, SETTING TIME STEP TO 0')
             time_step = 0
     
@@ -127,7 +128,7 @@ def prepare_model_inputs(
         if 'hidden_states' in inputs:
             del inputs['hidden_states']
     if DEBUG_MODE_2:
-        if time_step > 1:
+        if time_step > NUM_MAX_FRAMES-1:
             print ('DEBUG MODE_2, REMOVING HIDDEN STATES')
             if 'hidden_states' in inputs:
                 del inputs['hidden_states']
@@ -259,7 +260,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     print (f"DEBUG MODE, REMOVING HIDDEN STATES")
                     previous_frame = padding_image
                 if DEBUG_MODE_2:
-                    if frame_num > 1:
+                    if frame_num > NUM_MAX_FRAMES-1:
                         print (f"DEBUG MODE_2, REMOVING HIDDEN STATES")
                         previous_frame = padding_image
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
