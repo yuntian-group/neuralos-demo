@@ -259,7 +259,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 if DEBUG_MODE:
                     print (f"DEBUG MODE, REMOVING HIDDEN STATES")
                     previous_frame = padding_image
+
                 if DEBUG_MODE_2:
+                    print (f'dsfdasdf frame_num: {frame_num}')
                     if frame_num > NUM_MAX_FRAMES-1:
                         print (f"DEBUG MODE_2, REMOVING HIDDEN STATES")
                         previous_frame = padding_image
