@@ -23,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 DEBUG_MODE = False
-DEBUG_MODE_2 = False
+DEBUG_MODE_2 = True
 NUM_MAX_FRAMES = 32
 
 SCREEN_WIDTH = 512
