@@ -22,13 +22,13 @@ torch.backends.cudnn.allow_tf32 = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 DEBUG_MODE_2 = False
-NUM_MAX_FRAMES = 2
+NUM_MAX_FRAMES = 32
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
-NUM_SAMPLING_STEPS = 8
+NUM_SAMPLING_STEPS = 32
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
