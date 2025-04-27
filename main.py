@@ -28,7 +28,7 @@ NUM_MAX_FRAMES = 32
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
-NUM_SAMPLING_STEPS = 8
+NUM_SAMPLING_STEPS = 32
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
