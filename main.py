@@ -23,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 DEBUG_MODE = False
-DEBUG_MODE_2 = False
+DEBUG_MODE_2 = True
 NUM_MAX_FRAMES = 2
 
 SCREEN_WIDTH = 512
@@ -158,7 +158,7 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    use_rnn = True
+    use_rnn = False
     print (f"use_rnn: {use_rnn}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
