@@ -38,7 +38,7 @@ LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 # Initialize the model at the start of your application
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
 #model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
-model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model-noss")
 
 model = model.to(device)
 #model = torch.compile(model)
