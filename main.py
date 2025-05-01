@@ -24,11 +24,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 DEBUG_MODE = False
 DEBUG_MODE_2 = True
-NUM_MAX_FRAMES = 2
+NUM_MAX_FRAMES = 8
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
+
+print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}')
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
@@ -269,6 +271,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
                 print(f"[{time.perf_counter():.3f}] Starting model inference...")
                 previous_frame, sample_img, hidden_states, timing_info = await process_frame(model, inputs)
+                print (f'aaa setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}')
+
                 
                 timing_info['full_frame'] = time.perf_counter() - process_start_time
                 
