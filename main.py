@@ -22,7 +22,7 @@ torch.backends.cudnn.allow_tf32 = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 DEBUG_MODE_2 = False
 NUM_MAX_FRAMES = 2
 
