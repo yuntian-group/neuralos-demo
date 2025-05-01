@@ -23,12 +23,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 DEBUG_MODE = False
-DEBUG_MODE_2 = False
+DEBUG_MODE_2 = True
 NUM_MAX_FRAMES = 2
 
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
-NUM_SAMPLING_STEPS = 1000
+NUM_SAMPLING_STEPS = 32
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
@@ -163,7 +163,7 @@ def _process_frame_sync(model, inputs):
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
-        NUM_SAMPLING_STEPS = 8
+        #NUM_SAMPLING_STEPS = 8
         if NUM_SAMPLING_STEPS >= 1000:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
