@@ -30,7 +30,10 @@ SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
 
-print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}')
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-372k"
+
+
+print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
 
 with open('latent_stats.json', 'r') as f:
     latent_stats = json.load(f)
@@ -41,7 +44,9 @@ LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 #model = initialize_model("config_csllm.yaml", "yuntian-deng/computer-model")
 #model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
 #model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model-noss")
-model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
+#model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
+model = initialize_model("config_final_model.yaml", MODEL_NAME)
+
 model = model.to(device)
 #model = torch.compile(model)
 padding_image = torch.zeros(*LATENT_DIMS).unsqueeze(0).to(device)
