@@ -235,6 +235,30 @@ async def websocket_endpoint(websocket: WebSocket):
         input_queue = asyncio.Queue()
         is_processing = False
         
+        # Add a function to reset the simulation
+        async def reset_simulation():
+            nonlocal previous_frame, hidden_states, keys_down, frame_num, is_processing, input_queue
+            
+            # Clear the input queue
+            while not input_queue.empty():
+                try:
+                    input_queue.get_nowait()
+                    input_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
+            
+            # Reset all state variables
+            previous_frame = padding_image
+            hidden_states = None
+            keys_down = set()
+            frame_num = -1
+            is_processing = False
+            
+            print(f"[{time.perf_counter():.3f}] Simulation reset to initial state")
+            
+            # Send confirmation to client
+            await websocket.send_json({"type": "reset_confirmed"})
+        
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
             
@@ -375,6 +399,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 if data.get("type") == "heartbeat":
                     await websocket.send_json({"type": "heartbeat_response"})
+                    continue
+                
+                # Handle reset command
+                if data.get("type") == "reset":
+                    print(f"[{receive_time:.3f}] Received reset command")
+                    await reset_simulation()
                     continue
                 
                 # Add the input to our queue

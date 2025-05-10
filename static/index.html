@@ -14,6 +14,9 @@
 <body>
     <canvas id="displayCanvas" width="512" height="384"></canvas>
 
+    <!-- Add this button somewhere in your UI, perhaps near other controls -->
+    <button id="resetButton" class="control-button">Reset Simulation</button>
+
     <script>
         const canvas = document.getElementById('displayCanvas');
         const ctx = canvas.getContext('2d');
@@ -61,6 +64,9 @@
                         //isProcessing = false; // Reset the processing flag when we get a response
                     };
                     img.src = 'data:image/png;base64,' + data.image;
+                } else if (data.type === "reset_confirmed") {
+                    console.log("Simulation reset confirmed by server");
+                    // Optionally update UI to reflect reset state
                 }
             };
         }
@@ -210,6 +216,18 @@
                 } catch (error) {
                     console.error("Error during disconnection:", error);
                 }
+            }
+        });
+
+        // Add event listener for the reset button
+        document.getElementById('resetButton').addEventListener('click', function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("Sending reset command to server");
+                socket.send(JSON.stringify({
+                    type: "reset"
+                }));
+            } else {
+                console.error("WebSocket not connected, cannot reset");
             }
         });
     </script>
