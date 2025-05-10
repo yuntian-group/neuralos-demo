@@ -166,7 +166,7 @@ def _process_frame_sync(model, inputs):
     # UNet sampling
     start = time.perf_counter()
     use_rnn = False
-    print (f"use_rnn: {use_rnn}")
+    print (f"use_rnn: {use_rnn}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
@@ -258,6 +258,25 @@ async def websocket_endpoint(websocket: WebSocket):
             
             # Send confirmation to client
             await websocket.send_json({"type": "reset_confirmed"})
+        
+        # Add a function to update sampling steps
+        async def update_sampling_steps(steps):
+            global NUM_SAMPLING_STEPS
+            
+            # Validate the input
+            if steps < 1:
+                print(f"[{time.perf_counter():.3f}] Invalid sampling steps value: {steps}")
+                await websocket.send_json({"type": "error", "message": "Invalid sampling steps value"})
+                return
+                
+            # Update the global variable
+            old_steps = NUM_SAMPLING_STEPS
+            NUM_SAMPLING_STEPS = steps
+            
+            print(f"[{time.perf_counter():.3f}] Updated NUM_SAMPLING_STEPS from {old_steps} to {steps}")
+            
+            # Send confirmation to client
+            await websocket.send_json({"type": "steps_updated", "steps": steps})
         
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
@@ -405,6 +424,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 if data.get("type") == "reset":
                     print(f"[{receive_time:.3f}] Received reset command")
                     await reset_simulation()
+                    continue
+                
+                # Handle sampling steps update
+                if data.get("type") == "update_sampling_steps":
+                    print(f"[{receive_time:.3f}] Received request to update sampling steps")
+                    await update_sampling_steps(data.get("steps", 32))
                     continue
                 
                 # Add the input to our queue

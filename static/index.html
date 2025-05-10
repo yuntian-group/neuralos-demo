@@ -9,13 +9,43 @@
         #displayCanvas {
             cursor: none;
         }
+        
+        /* Add some styling for the controls */
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .control-button {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .step-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        #samplingSteps {
+            width: 60px;
+        }
     </style>
 </head>
 <body>
     <canvas id="displayCanvas" width="512" height="384"></canvas>
 
-    <!-- Add this button somewhere in your UI, perhaps near other controls -->
-    <button id="resetButton" class="control-button">Reset Simulation</button>
+    <div class="controls">
+        <button id="resetButton" class="control-button">Reset Simulation</button>
+        
+        <div class="step-control">
+            <label for="samplingSteps">Sampling Steps:</label>
+            <input type="number" id="samplingSteps" min="1" max="100" value="32">
+            <button id="updateStepsButton" class="control-button">Update</button>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('displayCanvas');
@@ -228,6 +258,27 @@
                 }));
             } else {
                 console.error("WebSocket not connected, cannot reset");
+            }
+        });
+        
+        // Add event listener for updating sampling steps
+        document.getElementById('updateStepsButton').addEventListener('click', function() {
+            const stepsInput = document.getElementById('samplingSteps');
+            const newSteps = parseInt(stepsInput.value, 10);
+            
+            if (isNaN(newSteps) || newSteps < 1) {
+                alert("Please enter a valid number of steps (minimum 1)");
+                return;
+            }
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log(`Sending update to set sampling steps to ${newSteps}`);
+                socket.send(JSON.stringify({
+                    type: "update_sampling_steps",
+                    steps: newSteps
+                }));
+            } else {
+                console.error("WebSocket not connected, cannot update steps");
             }
         });
     </script>
