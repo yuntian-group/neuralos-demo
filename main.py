@@ -30,7 +30,7 @@ SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
 
-MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-256k"
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-384k"
 
 
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
