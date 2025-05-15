@@ -32,6 +32,7 @@ NUM_SAMPLING_STEPS = 32
 
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-384k"
 
+MODEL_NAME = "yuntian-deng/computer-noss-forsure"
 
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
 
