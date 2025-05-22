@@ -34,6 +34,8 @@ MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-384k"
 
 MODEL_NAME = "yuntian-deng/computer-model-noss-forsure"
 
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-2k"
+
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
 
 with open('latent_stats.json', 'r') as f:
