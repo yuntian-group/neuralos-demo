@@ -3,47 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulator</title>
+    <title>NeuralOS Demo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Add this style rule to hide the cursor inside the canvas */
-        #displayCanvas {
-            cursor: none;
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
         }
         
-        /* Add some styling for the controls */
-        .controls {
-            margin-top: 10px;
+        .title-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
             align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            border: 3px solid #007bff;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            margin-bottom: 15px;
+        }
+        
+        .instruction-box {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #007bff;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        #displayCanvas {
+            cursor: none;
+            display: block;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         
         .control-button {
-            padding: 5px 10px;
             cursor: pointer;
         }
         
         .step-control {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 10px;
         }
         
         #samplingSteps {
-            width: 60px;
+            width: 70px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <canvas id="displayCanvas" width="512" height="384"></canvas>
-
-    <div class="controls">
-        <button id="resetButton" class="control-button">Reset Simulation</button>
+    <div class="container">
+        <div class="title-container">
+            <h1 class="mb-2">NeuralOS: Towards Simulating Operating Systems<br>via Neural Generative Models</h1>
+            <p class="mb-3">
+                <a href="https://anonymous.4open.science/r/neural-os" target="_blank" class="text-decoration-none">
+                    Project Code: anonymous.4open.science/r/neural-os
+                </a>
+            </p>
+        </div>
         
-        <div class="step-control">
-            <label for="samplingSteps">Sampling Steps:</label>
-            <input type="number" id="samplingSteps" min="1" max="100" value="32">
-            <button id="updateStepsButton" class="control-button">Update</button>
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <div class="instruction-box">Move your mouse inside to interact</div>
+                <canvas id="displayCanvas" width="512" height="384"></canvas>
+            </div>
+            
+            <div class="controls">
+                <button id="resetButton" class="btn btn-primary control-button">Reset Simulation</button>
+                
+                <div class="step-control">
+                    <label for="samplingSteps" class="form-label mb-0">Sampling Steps:</label>
+                    <input type="number" id="samplingSteps" class="form-control" min="1" max="100" value="32">
+                    <button id="updateStepsButton" class="btn btn-secondary control-button">Update</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Instructions:</h5>
+                        <ul class="mb-0">
+                            <li>Move your mouse inside the blue box to interact with NeuralOS</li>
+                            <li>Click to perform left-click actions</li>
+                            <li>Right-click to perform context menu actions</li>
+                            <li>Use your keyboard to type within the simulated environment</li>
+                            <li>Adjust sampling steps to control quality/speed tradeoff</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -62,7 +140,8 @@
         let showTrace = false;
 
         function connect() {
-            socket = new WebSocket(`wss://${window.location.host}/ws`);
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
             socket.onopen = function(event) {
                 console.log("WebSocket connection established");
@@ -125,6 +204,15 @@
 
         // Initial connection
         connect();
+
+        // Draw initial state on the canvas
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "18px Arial";
+        ctx.fillStyle = "#666666";
+        ctx.textAlign = "center";
+        ctx.fillText("Move your mouse here to interact with NeuralOS", canvas.width/2, canvas.height/2 - 10);
+        ctx.fillText("The neural model will render in this area", canvas.width/2, canvas.height/2 + 20);
 
         let lastSentPosition = null;
         let lastSentTime = 0;
@@ -282,5 +370,8 @@
             }
         });
     </script>
+    
+    <!-- Bootstrap JS (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
