@@ -139,6 +139,17 @@
         // Add flag to control trace visibility, default to false (hidden)
         let showTrace = false;
 
+        // Function to draw the initial canvas state
+        function drawInitialCanvas() {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "18px Arial";
+            ctx.fillStyle = "#666666";
+            ctx.textAlign = "center";
+            ctx.fillText("Move your mouse here to interact with NeuralOS", canvas.width/2, canvas.height/2 - 10);
+            ctx.fillText("The neural model will render in this area", canvas.width/2, canvas.height/2 + 20);
+        }
+
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -175,7 +186,8 @@
                     img.src = 'data:image/png;base64,' + data.image;
                 } else if (data.type === "reset_confirmed") {
                     console.log("Simulation reset confirmed by server");
-                    // Optionally update UI to reflect reset state
+                    // Clear the canvas and reset to initial state
+                    drawInitialCanvas();
                 }
             };
         }
@@ -206,13 +218,7 @@
         connect();
 
         // Draw initial state on the canvas
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = "18px Arial";
-        ctx.fillStyle = "#666666";
-        ctx.textAlign = "center";
-        ctx.fillText("Move your mouse here to interact with NeuralOS", canvas.width/2, canvas.height/2 - 10);
-        ctx.fillText("The neural model will render in this area", canvas.width/2, canvas.height/2 + 20);
+        drawInitialCanvas();
 
         let lastSentPosition = null;
         let lastSentTime = 0;
