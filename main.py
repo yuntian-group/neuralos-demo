@@ -42,6 +42,10 @@ MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-54k"
 
 
 
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-unfreezernn-160k"
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-368k"
+
+
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
 
 with open('latent_stats.json', 'r') as f:
@@ -54,7 +58,8 @@ LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 #model = initialize_model("config_rnn.yaml", "yuntian-deng/computer-model")
 #model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model-noss")
 #model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
-model = initialize_model("config_final_model.yaml", MODEL_NAME)
+#model = initialize_model("config_final_model.yaml", MODEL_NAME)
+model = initialize_model("config_final_model_origunet_nospatial.yaml", MODEL_NAME)
 
 model = model.to(device)
 #model = torch.compile(model)
