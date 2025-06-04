@@ -136,7 +136,10 @@ def prepare_model_inputs(
     }
     for key in keys_down:
         key = key.lower()
-        inputs['key_events'][stoi[key]] = 1
+        if key in stoi:
+            inputs['key_events'][stoi[key]] = 1
+        else:
+            print (f'Key {key} not found in stoi')
     
     if hidden_states is not None:
         inputs['hidden_states'] = hidden_states
