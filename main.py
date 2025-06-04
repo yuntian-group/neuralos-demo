@@ -96,6 +96,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Add this at the top with other global variables
+connection_counter = 0
 
 # Create a thread pool executor
 thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -226,7 +227,9 @@ async def get():
 # WebSocket endpoint for continuous user interaction
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):    
-    client_id = id(websocket)  # Use a unique identifier for each connection
+    global connection_counter
+    connection_counter += 1
+    client_id = f"{int(time.time())}_{connection_counter}"
     print(f"New WebSocket connection: {client_id}")
     await websocket.accept()
 
@@ -350,6 +353,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 print(f"[{time.perf_counter():.3f}] Sending image to client...")
                 await websocket.send_json({"image": img_str})
                 print(f"[{time.perf_counter():.3f}] Image sent. Queue size before next_input: {input_queue.qsize()}")
+
+                # Log the input
+                log_interaction(client_id, data, generated_frame=sample_img)
             finally:
                 is_processing = False
                 print(f"[{time.perf_counter():.3f}] Processing complete. Queue size before checking next input: {input_queue.qsize()}")
@@ -457,7 +463,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 print("WebSocket connection timed out")
             
             except WebSocketDisconnect:
-                print("WebSocket disconnected")
+                # Log final EOS entry
+                log_interaction(client_id, {}, is_end_of_session=True)
+                print(f"WebSocket disconnected: {client_id}")
                 break
 
     except Exception as e:
@@ -475,3 +483,44 @@ async def websocket_endpoint(websocket: WebSocket):
             print(f"  Average FPS: {frame_count/total_time:.2f}")
         
         print(f"WebSocket connection closed: {client_id}")
+
+def log_interaction(client_id, data, generated_frame=None, is_end_of_session=False):
+    """Log user interaction and optionally the generated frame."""
+    timestamp = time.time()
+    
+    # Create directory structure if it doesn't exist
+    os.makedirs("interaction_logs", exist_ok=True)
+    
+    # Structure the log entry
+    log_entry = {
+        "timestamp": timestamp,
+        "client_id": client_id,
+        "is_eos": is_end_of_session
+    }
+    
+    # Only include input data if this isn't an EOS token or if data is provided
+    if not is_end_of_session or data:
+        log_entry["inputs"] = {
+            "x": data.get("x"),
+            "y": data.get("y"),
+            "is_left_click": data.get("is_left_click"),
+            "is_right_click": data.get("is_right_click"),
+            "keys_down": data.get("keys_down", []),
+            "keys_up": data.get("keys_up", [])
+        }
+    else:
+        # For EOS records with empty data, just include minimal info
+        log_entry["inputs"] = None
+    
+    # Save to a file (one file per session)
+    session_file = f"interaction_logs/session_{client_id}.jsonl"
+    with open(session_file, "a") as f:
+        f.write(json.dumps(log_entry) + "\n")
+    
+    # Optionally save the frame if provided
+    if generated_frame is not None and not is_end_of_session:
+        frame_dir = f"interaction_logs/frames_{client_id}"
+        os.makedirs(frame_dir, exist_ok=True)
+        frame_file = f"{frame_dir}/{timestamp:.6f}.png"
+        # Save the frame as PNG
+        Image.fromarray(generated_frame).save(frame_file)
