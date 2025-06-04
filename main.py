@@ -251,6 +251,14 @@ async def websocket_endpoint(websocket: WebSocket):
         async def reset_simulation():
             nonlocal previous_frame, hidden_states, keys_down, frame_num, is_processing, input_queue
             
+            # Log the reset action
+            log_interaction(
+                client_id, 
+                {"type": "reset"}, 
+                is_end_of_session=False,
+                is_reset=True  # Add this parameter to the log_interaction function
+            )
+            
             # Clear the input queue
             while not input_queue.empty():
                 try:
@@ -484,7 +492,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         print(f"WebSocket connection closed: {client_id}")
 
-def log_interaction(client_id, data, generated_frame=None, is_end_of_session=False):
+def log_interaction(client_id, data, generated_frame=None, is_end_of_session=False, is_reset=False):
     """Log user interaction and optionally the generated frame."""
     timestamp = time.time()
     
@@ -495,11 +503,16 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
     log_entry = {
         "timestamp": timestamp,
         "client_id": client_id,
-        "is_eos": is_end_of_session
+        "is_eos": is_end_of_session,
+        "is_reset": is_reset
     }
     
-    # Only include input data if this isn't an EOS token or if data is provided
-    if not is_end_of_session or data:
+    # Include type if present (for reset, etc.)
+    if data.get("type"):
+        log_entry["type"] = data.get("type")
+    
+    # Only include input data if this isn't just a control message
+    if not is_end_of_session and not is_reset:
         log_entry["inputs"] = {
             "x": data.get("x"),
             "y": data.get("y"),
@@ -509,7 +522,7 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
             "keys_up": data.get("keys_up", [])
         }
     else:
-        # For EOS records with empty data, just include minimal info
+        # For EOS/reset records, just include minimal info
         log_entry["inputs"] = None
     
     # Save to a file (one file per session)
@@ -518,7 +531,7 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
         f.write(json.dumps(log_entry) + "\n")
     
     # Optionally save the frame if provided
-    if generated_frame is not None and not is_end_of_session:
+    if generated_frame is not None and not is_end_of_session and not is_reset:
         frame_dir = f"interaction_logs/frames_{client_id}"
         os.makedirs(frame_dir, exist_ok=True)
         frame_file = f"{frame_dir}/{timestamp:.6f}.png"
