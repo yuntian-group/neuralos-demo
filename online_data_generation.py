@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Tuple
 
 # Import the existing functions
-from latent_diffusion.ldm.data.data_collection import process_trajectory, initialize_clean_state
+from data.data_collection.synthetic_script_compute_canada import process_trajectory, initialize_clean_state
 
 # Configure logging
 logging.basicConfig(
