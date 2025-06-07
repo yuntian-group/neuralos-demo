@@ -7,14 +7,19 @@ import sqlite3
 import logging
 import cv2
 import numpy as np
+import subprocess
 from datetime import datetime
+from typing import List, Dict, Any, Tuple
+
+# Import the existing functions
+from latent_diffusion.ldm.data.data_collection import process_trajectory, initialize_clean_state
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("video_generator.log"),
+        logging.FileHandler("trajectory_processor.log"),
         logging.StreamHandler()
     ]
 )
@@ -22,9 +27,10 @@ logger = logging.getLogger(__name__)
 
 # Define constants
 DB_FILE = "trajectory_processor.db"
-OUTPUT_DIR = "generated_videos"
 FRAMES_DIR = "interaction_logs"
-
+SCREEN_WIDTH = 512
+SCREEN_HEIGHT = 384
+MEMORY_LIMIT = "2g"
 
 def initialize_database():
     """Initialize the SQLite database if it doesn't exist."""
@@ -50,8 +56,6 @@ def initialize_database():
         start_time REAL,
         end_time REAL,
         processed_time TIMESTAMP,
-        video_path TEXT,
-        frame_count INTEGER,
         trajectory_id INTEGER,
         UNIQUE(log_file, segment_index)
     )
@@ -137,128 +141,7 @@ def load_trajectory(log_file):
         return []
 
 
-def get_frame_files(client_id):
-    """Get all frame files for a client ID, sorted by timestamp."""
-    frame_dir = os.path.join(FRAMES_DIR, f"frames_{client_id}")
-    
-    if not os.path.exists(frame_dir):
-        logger.warning(f"No frame directory found for client {client_id}")
-        return []
-    
-    frames = glob.glob(os.path.join(frame_dir, "*.png"))
-    # Sort frames by timestamp in filename
-    frames.sort(key=lambda x: float(os.path.basename(x).split('.png')[0]))
-    return frames
-
-
-def process_trajectory(trajectory, output_file):
-    """
-    Process a trajectory and create a video file.
-    
-    Args:
-        trajectory: List of interaction log entries
-        output_file: Path to save the output video
-        
-    Returns:
-        (bool, int): (success status, frame count)
-    """
-    if not trajectory:
-        logger.error("Cannot process empty trajectory")
-        return False, 0
-    
-    try:
-        # Extract client_id from the first entry
-        client_id = trajectory[0].get("client_id")
-        if not client_id:
-            logger.error("Trajectory missing client_id")
-            return False, 0
-        
-        # Get all frame files for this client
-        frame_files = get_frame_files(client_id)
-        if not frame_files:
-            logger.error(f"No frames found for client {client_id}")
-            return False, 0
-            
-        # Read the first frame to get dimensions
-        first_frame = cv2.imread(frame_files[0])
-        if first_frame is None:
-            logger.error(f"Could not read first frame {frame_files[0]}")
-            return False, 0
-            
-        height, width, channels = first_frame.shape
-        
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video = cv2.VideoWriter(output_file, fourcc, 10.0, (width, height))
-        
-        # Process each frame
-        for frame_file in frame_files:
-            frame = cv2.imread(frame_file)
-            if frame is not None:
-                video.write(frame)
-        
-        # Release the video writer
-        video.release()
-        
-        logger.info(f"Successfully created video {output_file} with {len(frame_files)} frames")
-        return True, len(frame_files)
-        
-    except Exception as e:
-        logger.error(f"Error processing trajectory: {e}")
-        return False, 0
-
-
-def get_next_id():
-    """Get the next available ID from the database."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
-    result = cursor.fetchone()
-    next_id = int(result[0])
-    
-    conn.close()
-    return next_id
-
-
-def increment_next_id():
-    """Increment the next ID in the database."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute("UPDATE config SET value = value + 1 WHERE key = 'next_id'")
-    conn.commit()
-    
-    conn.close()
-
-
-def is_session_processed(log_file):
-    """Check if a session has already been processed."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT 1 FROM processed_sessions WHERE log_file = ?", (log_file,))
-    result = cursor.fetchone() is not None
-    
-    conn.close()
-    return result
-
-
-def mark_session_processed(log_file, client_id, video_path, frame_count):
-    """Mark a session as processed in the database."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "INSERT INTO processed_sessions (log_file, client_id, processed_time, video_path, frame_count) VALUES (?, ?, ?, ?, ?)",
-        (log_file, client_id, datetime.now().isoformat(), video_path, frame_count)
-    )
-    
-    conn.commit()
-    conn.close()
-
-
-def process_session_file(log_file):
+def process_session_file(log_file, clean_state):
     """
     Process a session file, splitting into multiple trajectories at reset points.
     Returns a list of successfully processed trajectory IDs.
@@ -270,6 +153,7 @@ def process_session_file(log_file):
     trajectory = load_trajectory(log_file)
     if not trajectory:
         logger.error(f"Empty trajectory for {log_file}, skipping")
+        conn.close()
         return []
         
     client_id = trajectory[0].get("client_id", "unknown")
@@ -287,6 +171,7 @@ def process_session_file(log_file):
     # If no resets and no EOS, this is incomplete - skip
     if not reset_indices and not has_eos:
         logger.warning(f"Session {log_file} has no resets and no EOS, may be incomplete")
+        conn.close()
         return []
     
     # Split trajectory at reset points
@@ -315,32 +200,29 @@ def process_session_file(log_file):
         cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
         next_id = int(cursor.fetchone()[0])
         
-        # Define output path
-        segment_label = f"segment_{i+1}_of_{len(sub_trajectories)}"
-        output_file = os.path.join(OUTPUT_DIR, f"trajectory_{next_id:06d}_{segment_label}.mp4")
-        
-        # Find timestamps for this segment to get corresponding frames
+        # Find timestamps for this segment
         start_time = sub_traj[0]["timestamp"]
         end_time = sub_traj[-1]["timestamp"]
         
-        # Process this sub-trajectory
-        success, frame_count = process_trajectory_segment(
-            client_id, 
-            sub_traj, 
-            output_file,
-            start_time,
-            end_time
-        )
-        
-        if success:
+        # Process this sub-trajectory using the external function
+        try:
+            logger.info(f"Processing segment {i+1}/{len(sub_trajectories)} from {log_file} as trajectory {next_id}")
+            
+            # Format the trajectory as needed by process_trajectory function
+            formatted_trajectory = format_trajectory_for_processing(sub_traj)
+            
+            # Call the external process_trajectory function
+            args = (next_id, formatted_trajectory)
+            process_trajectory(args, SCREEN_WIDTH, SCREEN_HEIGHT, clean_state, MEMORY_LIMIT)
+            
             # Mark this segment as processed
             cursor.execute(
                 """INSERT INTO processed_segments 
                    (log_file, client_id, segment_index, start_time, end_time, 
-                    processed_time, video_path, frame_count, trajectory_id) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    processed_time, trajectory_id) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (log_file, client_id, i, start_time, end_time, 
-                 datetime.now().isoformat(), output_file, frame_count, next_id)
+                 datetime.now().isoformat(), next_id)
             )
             
             # Increment the next ID
@@ -349,88 +231,69 @@ def process_session_file(log_file):
             
             processed_ids.append(next_id)
             logger.info(f"Successfully processed segment {i+1}/{len(sub_trajectories)} from {log_file}")
-        else:
-            logger.error(f"Failed to process segment {i+1}/{len(sub_trajectories)} from {log_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to process segment {i+1}/{len(sub_trajectories)} from {log_file}: {e}")
+            continue
     
-    # Mark the entire session as processed
-    cursor.execute(
-        "INSERT INTO processed_sessions (log_file, client_id, processed_time) VALUES (?, ?, ?)",
-        (log_file, client_id, datetime.now().isoformat())
-    )
-    conn.commit()
+    # Mark the entire session as processed only if at least one segment succeeded
+    if processed_ids:
+        try:
+            cursor.execute(
+                "INSERT INTO processed_sessions (log_file, client_id, processed_time) VALUES (?, ?, ?)",
+                (log_file, client_id, datetime.now().isoformat())
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # This can happen if we're re-processing a file that had some segments fail
+            pass
+    
     conn.close()
-    
     return processed_ids
 
 
-def process_trajectory_segment(client_id, trajectory, output_file, start_time, end_time):
+def format_trajectory_for_processing(trajectory):
     """
-    Process a segment of a trajectory between timestamps and create a video.
+    Format the trajectory in the structure expected by process_trajectory function.
     
-    Args:
-        client_id: Client ID for frame lookup
-        trajectory: List of interaction log entries for this segment
-        output_file: Path to save the output video
-        start_time: Start timestamp for this segment
-        end_time: End timestamp for this segment
-        
-    Returns:
-        (bool, int): (success status, frame count)
+    The exact format will depend on what your process_trajectory function expects.
+    This is a placeholder - modify based on the actual requirements.
     """
-    try:
-        # Get frame files for this client
-        all_frames = get_frame_files(client_id)
-        if not all_frames:
-            logger.error(f"No frames found for client {client_id}")
-            return False, 0
-        
-        # Filter frames to the time range of this segment
-        # Frame filenames are timestamps, so we can use them for filtering
-        segment_frames = [
-            f for f in all_frames 
-            if start_time <= float(os.path.basename(f).split('.png')[0]) <= end_time
-        ]
-        
-        if not segment_frames:
-            logger.error(f"No frames found in time range for segment {start_time}-{end_time}")
-            return False, 0
+    formatted_events = []
+    
+    for entry in trajectory:
+        # Skip control messages
+        if entry.get("is_reset") or entry.get("is_eos"):
+            continue
             
-        # Read the first frame to get dimensions
-        first_frame = cv2.imread(segment_frames[0])
-        if first_frame is None:
-            logger.error(f"Could not read first frame {segment_frames[0]}")
-            return False, 0
-            
-        height, width, channels = first_frame.shape
+        # Extract input data
+        inputs = entry.get("inputs", {})
+        key_events = []
+        for key in inputs.get("keys_down", []):
+            key_events.append(("keydown", key))
+        for key in inputs.get("keys_up", []):
+            key_events.append(("keyup", key))
+        event = {
+            "pos": (inputs.get("x"), inputs.get("y")),
+            "left_click": inputs.get("is_left_click", False),
+            "right_click": inputs.get("is_right_click", False),
+            "key_events": key_events,
+        }
         
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video = cv2.VideoWriter(output_file, fourcc, 10.0, (width, height))
-        
-        # Process each frame
-        for frame_file in segment_frames:
-            frame = cv2.imread(frame_file)
-            if frame is not None:
-                video.write(frame)
-        
-        # Release the video writer
-        video.release()
-        
-        logger.info(f"Created video {output_file} with {len(segment_frames)} frames")
-        return True, len(segment_frames)
-        
-    except Exception as e:
-        logger.error(f"Error processing trajectory segment: {e}")
-        return False, 0
+        formatted_events.append(event)
+    
+    return formatted_events
 
 
 def main():
     """Main function to run the data processing pipeline."""
-    # Create output directory if it doesn't exist
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
     # Initialize database
     initialize_database()
+    
+    # Initialize clean Docker state once
+    logger.info("Initializing clean container state...")
+    clean_state = initialize_clean_state()
+    logger.info(f"Clean state initialized: {clean_state}")
     
     # Find all log files
     log_files = glob.glob(os.path.join(FRAMES_DIR, "session_*.jsonl"))
@@ -458,7 +321,7 @@ def main():
     total_trajectories = 0
     for log_file in valid_sessions:
         logger.info(f"Processing session file: {log_file}")
-        processed_ids = process_session_file(log_file)
+        processed_ids = process_session_file(log_file, clean_state)
         total_trajectories += len(processed_ids)
     
     # Get next ID for reporting
@@ -468,7 +331,7 @@ def main():
     next_id = int(cursor.fetchone()[0])
     conn.close()
     
-    logger.info(f"Processing complete. Generated {total_trajectories} trajectory videos.")
+    logger.info(f"Processing complete. Generated {total_trajectories} trajectories.")
     logger.info(f"Next ID will be {next_id}")
 
 
