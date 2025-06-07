@@ -149,6 +149,9 @@ def process_session_file(log_file, clean_state):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
+    # Ensure output directory exists
+    os.makedirs("generated_videos", exist_ok=True)
+    
     # Get session details
     trajectory = load_trajectory(log_file)
     if not trajectory:
@@ -204,7 +207,23 @@ def process_session_file(log_file, clean_state):
         start_time = sub_traj[0]["timestamp"]
         end_time = sub_traj[-1]["timestamp"]
         
-        # Process this sub-trajectory using the external function
+        # STEP 1: Generate a video from the original frames
+        segment_label = f"segment_{i+1}_of_{len(sub_trajectories)}"
+        video_path = os.path.join("generated_videos", f"trajectory_{next_id:06d}_{segment_label}.mp4")
+        
+        # Generate video from original frames for comparison
+        success, frame_count = generate_comparison_video(
+            client_id, 
+            sub_traj,
+            video_path,
+            start_time,
+            end_time
+        )
+        
+        if not success:
+            logger.warning(f"Failed to generate comparison video for segment {i+1}, but continuing with processing")
+            
+        # STEP 2: Process with Docker for training data generation
         try:
             logger.info(f"Processing segment {i+1}/{len(sub_trajectories)} from {log_file} as trajectory {next_id}")
             
@@ -283,6 +302,75 @@ def format_trajectory_for_processing(trajectory):
         formatted_events.append(event)
     
     return formatted_events
+
+
+def generate_comparison_video(client_id, trajectory, output_file, start_time, end_time):
+    """
+    Generate a video from the original frames for comparison purposes.
+    
+    Args:
+        client_id: Client ID for frame lookup
+        trajectory: List of interaction log entries for this segment
+        output_file: Path to save the output video
+        start_time: Start timestamp for this segment
+        end_time: End timestamp for this segment
+        
+    Returns:
+        (bool, int): (success status, frame count)
+    """
+    try:
+        # Get frame files for this client
+        frame_dir = os.path.join(FRAMES_DIR, f"frames_{client_id}")
+        if not os.path.exists(frame_dir):
+            logger.warning(f"No frame directory found for client {client_id}")
+            return False, 0
+        
+        all_frames = glob.glob(os.path.join(frame_dir, "*.png"))
+        # Sort frames by timestamp in filename
+        all_frames.sort(key=lambda x: float(os.path.basename(x).split('.png')[0]))
+        
+        if not all_frames:
+            logger.error(f"No frames found for client {client_id}")
+            return False, 0
+        
+        # Filter frames to the time range of this segment
+        # Frame filenames are timestamps, so we can use them for filtering
+        segment_frames = [
+            f for f in all_frames 
+            if start_time <= float(os.path.basename(f).split('.png')[0]) <= end_time
+        ]
+        
+        if not segment_frames:
+            logger.error(f"No frames found in time range for segment {start_time}-{end_time}")
+            return False, 0
+            
+        # Read the first frame to get dimensions
+        first_frame = cv2.imread(segment_frames[0])
+        if first_frame is None:
+            logger.error(f"Could not read first frame {segment_frames[0]}")
+            return False, 0
+            
+        height, width, channels = first_frame.shape
+        
+        # Create video writer
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video = cv2.VideoWriter(output_file, fourcc, 10.0, (width, height))
+        
+        # Process each frame
+        for frame_file in segment_frames:
+            frame = cv2.imread(frame_file)
+            if frame is not None:
+                video.write(frame)
+        
+        # Release the video writer
+        video.release()
+        
+        logger.info(f"Created comparison video {output_file} with {len(segment_frames)} frames")
+        return True, len(segment_frames)
+        
+    except Exception as e:
+        logger.error(f"Error generating comparison video: {e}")
+        return False, 0
 
 
 def main():
