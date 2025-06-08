@@ -305,7 +305,8 @@ def process_session_file(log_file, clean_state):
 
                         # Save each latent to the tar file
                         latent = latents[0]
-                        key = str(image_num)
+                        keys = [str(image_num)]
+                        key = keys[0]
                         
                         # Convert latent to bytes
                         latent_bytes = io.BytesIO()
