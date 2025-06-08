@@ -90,7 +90,7 @@ def initialize_database():
     # Initialize next_id if not exists
     cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO config (key, value) VALUES ('next_id', '1')")
+        cursor.execute("INSERT INTO config (key, value) VALUES ('next_id', '0')")
     
     conn.commit()
     conn.close()
