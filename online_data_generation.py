@@ -541,8 +541,8 @@ def main():
         posterior = autoencoder.encode(padding_tensor)
         latent = posterior.sample()
         latent = torch.zeros_like(latent).squeeze(0)
-        np.save(os.path.join(OUTPUT_DIR, 'padding.npy.tmp'), latent.cpu().numpy())
-        os.rename(os.path.join(OUTPUT_DIR, 'padding.npy.tmp'), os.path.join(OUTPUT_DIR, 'padding.npy'))
+        np.save(os.path.join(OUTPUT_DIR, 'padding.tmp.npy'), latent.cpu().numpy())
+        os.rename(os.path.join(OUTPUT_DIR, 'padding.tmp.npy'), os.path.join(OUTPUT_DIR, 'padding.npy'))
     # Initialize database
     initialize_database()
     
