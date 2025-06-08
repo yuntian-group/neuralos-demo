@@ -376,35 +376,130 @@ def transfer_padding_file(sftp):
 
 
 def run_transfer_cycle():
-    """Run a complete transfer cycle."""
+    """Run a complete transfer cycle with time-based consistency."""
     client = None
     try:
         # Connect to the remote server
         client = create_ssh_client()
         sftp = client.open_sftp()
         
-        # Step 0: Transfer padding.npy file (critical for model operation)
-        padding_success = transfer_padding_file(sftp)
-        if not padding_success:
-            logger.warning("Failed to transfer padding.npy file, but continuing with other transfers")
+        # Step 0: Get a snapshot of all files with their timestamps
+        # This creates a consistent view of the remote directory at this point in time
+        logger.info("Taking snapshot of remote directory state")
+        remote_files = {}
+        for filename in sftp.listdir(REMOTE_DATA_DIR):
+            try:
+                file_path = os.path.join(REMOTE_DATA_DIR, filename)
+                stat = sftp.stat(file_path)
+                remote_files[filename] = {
+                    'size': stat.st_size,
+                    'mtime': stat.st_mtime,
+                    'path': file_path
+                }
+            except Exception as e:
+                logger.warning(f"Could not stat file {filename}: {str(e)}")
+                
+        logger.info(f"Found {len(remote_files)} files in remote directory snapshot")
         
-        # Step 1: Transfer TAR files
-        tar_count = transfer_tar_files(sftp)
-        
-        # Step 2: Transfer PKL file (only if we have new TAR files or it's changed)
-        if tar_count > 0 or not get_transfer_state("last_pkl_transfer"):
-            pkl_success = transfer_pkl_file(sftp)
+        # Step 1: Transfer padding.npy file if needed
+        if "padding.npy" in remote_files:
+            file_info = remote_files["padding.npy"]
+            if not is_file_transferred("padding.npy", file_info['size'], file_info['mtime']):
+                # Check stability
+                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, "padding.npy")
+                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
+                    mark_file_transferred("padding.npy", updated_stat.st_size, updated_stat.st_mtime, checksum)
+                    logger.info("Successfully transferred padding.npy file")
+                else:
+                    logger.warning("Padding file is still being written, skipping")
         else:
-            pkl_success = True  # Assume success if we didn't need to transfer
+            logger.warning("padding.npy not found in remote directory")
+        
+        # Step 2: Transfer TAR files from the snapshot
+        tar_pattern = re.compile(r'record_.*\.tar$')
+        tar_files = {name: info for name, info in remote_files.items() if tar_pattern.match(name)}
+        logger.info(f"Found {len(tar_files)} TAR files in snapshot")
+        
+        tar_count = 0
+        for tar_file, file_info in tar_files.items():
+            # Skip if already transferred with same size and mtime
+            if is_file_transferred(tar_file, file_info['size'], file_info['mtime']):
+                logger.debug(f"Skipping already transferred file: {tar_file}")
+                continue
+                
+            # Check if file is stable
+            is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
+            if not is_stable:
+                logger.info(f"Skipping unstable file: {tar_file}")
+                continue
+                
+            # Transfer the file
+            try:
+                local_path = os.path.join(LOCAL_DATA_DIR, tar_file)
+                checksum = safe_transfer_file(sftp, file_info['path'], local_path)
+                mark_file_transferred(tar_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+                tar_count += 1
+            except Exception as e:
+                logger.error(f"Failed to transfer {tar_file}: {str(e)}")
+                
+        logger.info(f"Transferred {tar_count} new TAR files from snapshot")
+        
+        # Step 3: Transfer PKL file from the snapshot
+        pkl_file = "image_action_mapping_with_key_states.pkl"
+        if pkl_file in remote_files:
+            file_info = remote_files[pkl_file]
             
-        # Step 3: Transfer CSV file (only if PKL transfer succeeded)
-        if pkl_success:
-            csv_success = transfer_csv_file(sftp)
+            # Only transfer if needed
+            if not is_file_transferred(pkl_file, file_info['size'], file_info['mtime']):
+                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, pkl_file)
+                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
+                    mark_file_transferred(pkl_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+                    update_transfer_state("last_pkl_transfer", datetime.now().isoformat())
+                    logger.info("Successfully transferred PKL file from snapshot")
+                    pkl_success = True
+                else:
+                    logger.warning("PKL file is still being written, skipping")
+                    pkl_success = False
+            else:
+                logger.debug("PKL file unchanged, skipping")
+                pkl_success = True
         else:
-            logger.warning("Skipping CSV transfer because PKL transfer failed")
+            logger.warning("PKL file not found in snapshot")
+            pkl_success = False
+        
+        # Step 4: Transfer CSV file from the snapshot (only if PKL succeeded)
+        csv_file = "train_dataset.target_frames.csv"
+        if pkl_success and csv_file in remote_files:
+            file_info = remote_files[csv_file]
+            
+            # Only transfer if needed
+            if not is_file_transferred(csv_file, file_info['size'], file_info['mtime']):
+                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, csv_file)
+                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
+                    mark_file_transferred(csv_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+                    update_transfer_state("last_csv_transfer", datetime.now().isoformat())
+                    logger.info("Successfully transferred CSV file from snapshot")
+                    csv_success = True
+                else:
+                    logger.warning("CSV file is still being written, skipping")
+                    csv_success = False
+            else:
+                logger.debug("CSV file unchanged, skipping")
+                csv_success = True
+        else:
+            if not pkl_success:
+                logger.warning("Skipping CSV transfer because PKL transfer failed")
+            else:
+                logger.warning("CSV file not found in snapshot")
             csv_success = False
-            
-        return padding_success or tar_count > 0 or pkl_success or csv_success
+        
+        return tar_count > 0 or pkl_success or csv_success
     except Exception as e:
         logger.error(f"Error in transfer cycle: {str(e)}")
         return False
