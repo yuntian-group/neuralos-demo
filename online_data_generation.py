@@ -351,7 +351,7 @@ def process_session_file(log_file, clean_state):
 
                                 # Save comparison image
                                 Image.fromarray(comparison).save(
-                                    os.path.join(debug_dir, f'debug_{video_file}_{idx}_{keys[idx]}.png')
+                                    os.path.join(debug_dir, f'debug_{image_num}_{idx}_{keys[idx]}.png')
                                 )
                             print(f"\nDebug visualizations saved to {debug_dir}")
                 sink.close()
