@@ -535,7 +535,7 @@ def main():
     # create a padding image first
     if not os.path.exists(os.path.join(OUTPUT_DIR, 'padding.npy')):
         logger.info("Creating padding image...")
-        padding_data = np.zeros((SCREEN_HEIGHT, SCREEN_WIDTH, 3), dtype=np.uint8)
+        padding_data = np.zeros((SCREEN_HEIGHT, SCREEN_WIDTH, 3), dtype=np.float32)
         padding_tensor = torch.tensor(padding_data).unsqueeze(0)
         padding_tensor = rearrange(padding_tensor, 'b h w c -> b c h w').to(device)
         posterior = autoencoder.encode(padding_tensor)
