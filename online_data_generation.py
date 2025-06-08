@@ -319,7 +319,7 @@ def process_session_file(log_file, clean_state):
                             "npy": latent_bytes.getvalue(),
                         }
                         sink.write(sample)
-                        debug = True
+                        debug = False
                         # Debug first batch if requested
                         if debug:
                             debug_dir = os.path.join(OUTPUT_DIR, 'debug')
