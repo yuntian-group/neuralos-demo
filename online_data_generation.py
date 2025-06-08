@@ -531,6 +531,16 @@ def generate_comparison_video(client_id, trajectory, output_file, start_time, en
 
 def main():
     """Main function to run the data processing pipeline."""
+
+    # create a padding image first
+    padding_data = np.zeros((SCREEN_HEIGHT, SCREEN_WIDTH, 3), dtype=np.uint8)
+    padding_tensor = torch.tensor(padding_data).unsqueeze(0)
+    padding_tensor = rearrange(padding_tensor, 'b h w c -> b c h w').to(device)
+    posterior = autoencoder.encode(padding_tensor)
+    latent = posterior.sample()
+    latent = torch.zeros_like(latent).squeeze(0)
+    np.save(os.path.join(OUTPUT_DIR, 'padding.npy'), latent.cpu().numpy())
+
     # Initialize database
     initialize_database()
     
