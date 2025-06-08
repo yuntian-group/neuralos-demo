@@ -336,6 +336,45 @@ def transfer_csv_file(sftp):
         return False
 
 
+def transfer_padding_file(sftp):
+    """Transfer the padding.npy file if it hasn't been transferred yet or has changed."""
+    padding_file = "padding.npy"
+    remote_path = os.path.join(REMOTE_DATA_DIR, padding_file)
+    local_path = os.path.join(LOCAL_DATA_DIR, padding_file)
+    
+    try:
+        # Check if file exists
+        try:
+            stat = sftp.stat(remote_path)
+        except FileNotFoundError:
+            logger.warning(f"Padding file {remote_path} not found")
+            return False
+            
+        # Skip if already transferred with same size and mtime
+        if is_file_transferred(padding_file, stat.st_size, stat.st_mtime):
+            logger.debug(f"Skipping already transferred padding file (unchanged)")
+            return True
+            
+        # Check if file is stable
+        is_stable, updated_stat = is_file_stable(sftp, remote_path)
+        if not is_stable:
+            logger.info(f"Padding file is still being written to, skipping")
+            return False
+            
+        # Transfer the file
+        checksum = safe_transfer_file(sftp, remote_path, local_path)
+        mark_file_transferred(padding_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+        
+        # Update state
+        update_transfer_state("last_padding_transfer", datetime.now().isoformat())
+        
+        logger.info(f"Successfully transferred padding.npy file")
+        return True
+    except Exception as e:
+        logger.error(f"Error transferring padding file: {str(e)}")
+        return False
+
+
 def run_transfer_cycle():
     """Run a complete transfer cycle."""
     client = None
@@ -343,6 +382,11 @@ def run_transfer_cycle():
         # Connect to the remote server
         client = create_ssh_client()
         sftp = client.open_sftp()
+        
+        # Step 0: Transfer padding.npy file (critical for model operation)
+        padding_success = transfer_padding_file(sftp)
+        if not padding_success:
+            logger.warning("Failed to transfer padding.npy file, but continuing with other transfers")
         
         # Step 1: Transfer TAR files
         tar_count = transfer_tar_files(sftp)
@@ -360,7 +404,7 @@ def run_transfer_cycle():
             logger.warning("Skipping CSV transfer because PKL transfer failed")
             csv_success = False
             
-        return tar_count > 0 or pkl_success or csv_success
+        return padding_success or tar_count > 0 or pkl_success or csv_success
     except Exception as e:
         logger.error(f"Error in transfer cycle: {str(e)}")
         return False
