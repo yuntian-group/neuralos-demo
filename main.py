@@ -320,8 +320,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 total_elapsed = process_start_time - connection_start_time
                 global_fps = frame_count / total_elapsed if total_elapsed > 0 else 0
                 
+                # change x and y to be between 0 and width/height-1 in data
+                data['x'] = max(0, min(data['x'], SCREEN_WIDTH - 1))
+                data['y'] = max(0, min(data['y'], SCREEN_HEIGHT - 1))
                 x = data.get("x")
                 y = data.get("y")
+                assert 0 <= x < SCREEN_WIDTH, f"x: {x} is out of range"
+                assert 0 <= y < SCREEN_HEIGHT, f"y: {y} is out of range"
                 is_left_click = data.get("is_left_click")
                 is_right_click = data.get("is_right_click")
                 keys_down_list = data.get("keys_down", [])  # Get as list
