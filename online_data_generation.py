@@ -21,6 +21,7 @@ import pandas as pd
 import ast
 import pickle
 from moviepy.editor import VideoFileClip
+import signal
 
 # Import the existing functions
 from data.data_collection.synthetic_script_compute_canada import process_trajectory, initialize_clean_state
@@ -44,12 +45,26 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 MEMORY_LIMIT = "2g"
+CHECK_INTERVAL = 60  # Check for new data every 60 seconds
 
 # load autoencoder
 config = OmegaConf.load('../computer/autoencoder/config_kl4_lr4.5e6_load_acc1_512_384_mar10_keyboard_init_16_contmar15_acc1.yaml')
 autoencoder = load_model_from_config(config, '../computer/autoencoder/saved_kl4_bsz8_acc8_lr4.5e6_load_acc1_512_384_mar10_keyboard_init_16_cont_mar15_acc1_cont_1e6_cont_2e7_cont/model-2076000.ckpt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 autoencoder = autoencoder.to(device)
+
+# Global flag for graceful shutdown
+running = True
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C and other termination signals"""
+    global running
+    logger.info("Shutdown signal received. Finishing current processing and exiting...")
+    running = False
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def initialize_database():
     """Initialize the SQLite database if it doesn't exist."""
@@ -531,7 +546,8 @@ def generate_comparison_video(client_id, trajectory, output_file, start_time, en
 
 def main():
     """Main function to run the data processing pipeline."""
-
+    global running
+    
     # create a padding image first
     if not os.path.exists(os.path.join(OUTPUT_DIR, 'padding.npy')):
         logger.info("Creating padding image...")
@@ -543,52 +559,86 @@ def main():
         latent = torch.zeros_like(latent).squeeze(0)
         np.save(os.path.join(OUTPUT_DIR, 'padding.tmp.npy'), latent.cpu().numpy())
         os.rename(os.path.join(OUTPUT_DIR, 'padding.tmp.npy'), os.path.join(OUTPUT_DIR, 'padding.npy'))
+    
     # Initialize database
     initialize_database()
     
-    # Initialize clean Docker state once
+    # Initialize clean Docker state
     logger.info("Initializing clean container state...")
     clean_state = initialize_clean_state()
     logger.info(f"Clean state initialized: {clean_state}")
     
-    # Find all log files
-    log_files = glob.glob(os.path.join(FRAMES_DIR, "session_*.jsonl"))
-    logger.info(f"Found {len(log_files)} log files")
+    # Ensure output directory exists
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    # Filter for complete sessions
-    complete_sessions = [f for f in log_files if is_session_complete(f)]
-    logger.info(f"Found {len(complete_sessions)} complete sessions")
+    logger.info(f"Starting continuous monitoring for new sessions (check interval: {CHECK_INTERVAL} seconds)")
     
-    # Filter for sessions not yet processed
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT log_file FROM processed_sessions")
-    processed_files = set(row[0] for row in cursor.fetchall())
-    conn.close()
-    
-    new_sessions = [f for f in complete_sessions if f not in processed_files]
-    logger.info(f"Found {len(new_sessions)} new sessions to process")
-    
-    # Filter for valid sessions
-    valid_sessions = [f for f in new_sessions if is_session_valid(f)]
-    logger.info(f"Found {len(valid_sessions)} valid new sessions to process")
-    
-    # Process each valid session
-    total_trajectories = 0
-    for log_file in valid_sessions:
-        logger.info(f"Processing session file: {log_file}")
-        processed_ids = process_session_file(log_file, clean_state)
-        total_trajectories += len(processed_ids)
-    
-    # Get next ID for reporting
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
-    next_id = int(cursor.fetchone()[0])
-    conn.close()
-    
-    logger.info(f"Processing complete. Generated {total_trajectories} trajectories.")
-    logger.info(f"Next ID will be {next_id}")
+    try:
+        # Main monitoring loop
+        while running:
+            try:
+                # Find all log files
+                log_files = glob.glob(os.path.join(FRAMES_DIR, "session_*.jsonl"))
+                logger.info(f"Found {len(log_files)} log files")
+                
+                # Filter for complete sessions
+                complete_sessions = [f for f in log_files if is_session_complete(f)]
+                logger.info(f"Found {len(complete_sessions)} complete sessions")
+                
+                # Filter for sessions not yet processed
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT log_file FROM processed_sessions")
+                processed_files = set(row[0] for row in cursor.fetchall())
+                conn.close()
+                
+                new_sessions = [f for f in complete_sessions if f not in processed_files]
+                logger.info(f"Found {len(new_sessions)} new sessions to process")
+                
+                # Filter for valid sessions
+                valid_sessions = [f for f in new_sessions if is_session_valid(f)]
+                logger.info(f"Found {len(valid_sessions)} valid new sessions to process")
+                
+                # Process each valid session
+                total_trajectories = 0
+                for log_file in valid_sessions:
+                    if not running:
+                        logger.info("Shutdown in progress, stopping processing")
+                        break
+                        
+                    logger.info(f"Processing session file: {log_file}")
+                    processed_ids = process_session_file(log_file, clean_state)
+                    total_trajectories += len(processed_ids)
+                
+                if total_trajectories > 0:
+                    # Get next ID for reporting
+                    conn = sqlite3.connect(DB_FILE)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
+                    next_id = int(cursor.fetchone()[0])
+                    conn.close()
+                    
+                    logger.info(f"Processing cycle complete. Generated {total_trajectories} new trajectories.")
+                    logger.info(f"Next ID will be {next_id}")
+                else:
+                    logger.info("No new trajectories processed in this cycle")
+                
+                # Sleep until next check, but with periodic wake-ups to check running flag
+                remaining_sleep = CHECK_INTERVAL
+                while remaining_sleep > 0 and running:
+                    sleep_chunk = min(5, remaining_sleep)  # Check running flag every 5 seconds max
+                    time.sleep(sleep_chunk)
+                    remaining_sleep -= sleep_chunk
+                    
+            except Exception as e:
+                logger.error(f"Error in processing cycle: {e}")
+                # Sleep briefly to avoid rapid error loops
+                time.sleep(10)
+                
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received, shutting down")
+    finally:
+        logger.info("Shutting down trajectory processor")
 
 
 if __name__ == "__main__":
