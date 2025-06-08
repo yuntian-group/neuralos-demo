@@ -159,7 +159,7 @@ def load_trajectory(log_file):
         logger.error(f"Error loading trajectory from {log_file}: {e}")
         return []
 
-
+@torch.no_grad()
 def process_session_file(log_file, clean_state):
     """Process a session file, splitting into multiple trajectories at reset points."""
     conn = None
