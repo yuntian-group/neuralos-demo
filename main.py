@@ -29,7 +29,6 @@ NUM_MAX_FRAMES = 1
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
-USE_RNN = True
 USE_RNN = False
 
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-384k"
@@ -313,6 +312,19 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send confirmation to client
             await websocket.send_json({"type": "steps_updated", "steps": steps})
         
+        # Add a function to update USE_RNN setting
+        async def update_use_rnn(use_rnn):
+            global USE_RNN
+            
+            # Update the global variable
+            old_setting = USE_RNN
+            USE_RNN = use_rnn
+            
+            print(f"[{time.perf_counter():.3f}] Updated USE_RNN from {old_setting} to {use_rnn}")
+            
+            # Send confirmation to client
+            await websocket.send_json({"type": "rnn_updated", "use_rnn": use_rnn})
+        
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
             
@@ -473,6 +485,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 if data.get("type") == "update_sampling_steps":
                     print(f"[{receive_time:.3f}] Received request to update sampling steps")
                     await update_sampling_steps(data.get("steps", 32))
+                    continue
+                
+                # Handle USE_RNN update
+                if data.get("type") == "update_use_rnn":
+                    print(f"[{receive_time:.3f}] Received request to update USE_RNN")
+                    await update_use_rnn(data.get("use_rnn", False))
                     continue
                 
                 # Add the input to our queue

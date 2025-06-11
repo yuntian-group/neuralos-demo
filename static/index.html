@@ -104,6 +104,11 @@
                     <input type="number" id="samplingSteps" class="form-control" min="1" max="100" value="32">
                     <button id="updateStepsButton" class="btn btn-secondary control-button">Update</button>
                 </div>
+                
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="useRnnToggle">
+                    <label class="form-check-label" for="useRnnToggle">Use RNN</label>
+                </div>
             </div>
         </div>
         
@@ -118,6 +123,7 @@
                             <li>Right-click to perform context menu actions</li>
                             <li>Use your keyboard to type within the simulated environment</li>
                             <li>Adjust sampling steps to control quality/speed tradeoff</li>
+                            <li>Toggle "Use RNN" to switch between RNN and diffusion mode</li>
                         </ul>
                     </div>
                 </div>
@@ -188,6 +194,10 @@
                     console.log("Simulation reset confirmed by server");
                     // Clear the canvas and reset to initial state
                     drawInitialCanvas();
+                } else if (data.type === "rnn_updated") {
+                    console.log(`USE_RNN setting updated to: ${data.use_rnn}`);
+                    // Update the toggle to match the server state
+                    document.getElementById('useRnnToggle').checked = data.use_rnn;
                 }
             };
         }
@@ -373,6 +383,21 @@
                 }));
             } else {
                 console.error("WebSocket not connected, cannot update steps");
+            }
+        });
+        
+        // Add event listener for the USE_RNN toggle
+        document.getElementById('useRnnToggle').addEventListener('change', function() {
+            const useRnn = this.checked;
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log(`Sending update to set USE_RNN to ${useRnn}`);
+                socket.send(JSON.stringify({
+                    type: "update_use_rnn",
+                    use_rnn: useRnn
+                }));
+            } else {
+                console.error("WebSocket not connected, cannot update USE_RNN");
             }
         });
     </script>
