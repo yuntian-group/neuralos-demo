@@ -29,6 +29,8 @@ NUM_MAX_FRAMES = 1
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
+USE_RNN = True
+USE_RNN = False
 
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-384k"
 
@@ -189,9 +191,8 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    use_rnn = False
-    print (f"use_rnn: {use_rnn}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}")
-    if use_rnn:
+    print (f"USE_RNN: {USE_RNN}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}")
+    if USE_RNN:
         sample_latent = output_from_rnn[:, :16]
     else:
         #NUM_SAMPLING_STEPS = 8
