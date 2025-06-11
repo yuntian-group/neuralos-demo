@@ -192,6 +192,7 @@ def _process_frame_sync(model, inputs, use_rnn, num_sampling_steps):
     
     # UNet sampling
     start = time.perf_counter()
+    model.clip_denoised = False
     print (f"USE_RNN: {use_rnn}, NUM_SAMPLING_STEPS: {num_sampling_steps}")
     if use_rnn:
         sample_latent = output_from_rnn[:, :16]
