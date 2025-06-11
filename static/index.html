@@ -164,6 +164,12 @@
                 console.log("WebSocket connection established");
                 isConnected = true;
                 reconnectAttempts = 0;
+                
+                // Request current settings from server to sync UI
+                socket.send(JSON.stringify({
+                    type: "get_settings"
+                }));
+                
                 //startHeartbeat();
             };
 
@@ -197,6 +203,11 @@
                 } else if (data.type === "rnn_updated") {
                     console.log(`USE_RNN setting updated to: ${data.use_rnn}`);
                     // Update the toggle to match the server state
+                    document.getElementById('useRnnToggle').checked = data.use_rnn;
+                } else if (data.type === "settings") {
+                    // Update UI elements to match server settings
+                    console.log(`Received settings from server: SAMPLING_STEPS=${data.sampling_steps}, USE_RNN=${data.use_rnn}`);
+                    document.getElementById('samplingSteps').value = data.sampling_steps;
                     document.getElementById('useRnnToggle').checked = data.use_rnn;
                 }
             };

@@ -170,17 +170,19 @@ def prepare_model_inputs(
 @torch.no_grad()
 async def process_frame(
     model: LatentDiffusion,
-    inputs: Dict[str, torch.Tensor]
+    inputs: Dict[str, torch.Tensor],
+    use_rnn: bool = False,
+    num_sampling_steps: int = 32
 ) -> Tuple[torch.Tensor, np.ndarray, Any, Dict[str, float]]:
     """Process a single frame through the model."""
     # Run the heavy computation in a separate thread
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         thread_executor,
-        lambda: _process_frame_sync(model, inputs)
+        lambda: _process_frame_sync(model, inputs, use_rnn, num_sampling_steps)
     )
 
-def _process_frame_sync(model, inputs):
+def _process_frame_sync(model, inputs, use_rnn, num_sampling_steps):
     """Synchronous version of process_frame that runs in a thread"""
     timing = {}
     # Temporal encoding
@@ -190,17 +192,17 @@ def _process_frame_sync(model, inputs):
     
     # UNet sampling
     start = time.perf_counter()
-    print (f"USE_RNN: {USE_RNN}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}")
-    if USE_RNN:
+    print (f"USE_RNN: {use_rnn}, NUM_SAMPLING_STEPS: {num_sampling_steps}")
+    if use_rnn:
         sample_latent = output_from_rnn[:, :16]
     else:
         #NUM_SAMPLING_STEPS = 8
-        if NUM_SAMPLING_STEPS >= 1000:
+        if num_sampling_steps >= 1000:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
             sampler = DDIMSampler(model)
             sample_latent, _ = sampler.sample(
-                S=NUM_SAMPLING_STEPS,
+                S=num_sampling_steps,
                 conditioning={'c_concat': output_from_rnn},
                 batch_size=1,
                 shape=LATENT_DIMS,
@@ -253,6 +255,12 @@ async def websocket_endpoint(websocket: WebSocket):
         keys_down = set()  # Initialize as an empty set
         frame_num = -1
         
+        # Client-specific settings
+        client_settings = {
+            "use_rnn": USE_RNN,  # Start with default global value
+            "sampling_steps": NUM_SAMPLING_STEPS  # Start with default global value
+        }
+        
         # Start timing for global FPS calculation
         connection_start_time = time.perf_counter()
         frame_count = 0
@@ -264,6 +272,8 @@ async def websocket_endpoint(websocket: WebSocket):
         # Add a function to reset the simulation
         async def reset_simulation():
             nonlocal previous_frame, hidden_states, keys_down, frame_num, is_processing, input_queue
+            # Keep the client settings during reset
+            temp_client_settings = client_settings.copy()
             
             # Log the reset action
             log_interaction(
@@ -288,14 +298,24 @@ async def websocket_endpoint(websocket: WebSocket):
             frame_num = -1
             is_processing = False
             
-            print(f"[{time.perf_counter():.3f}] Simulation reset to initial state")
+            # Restore client settings
+            client_settings.update(temp_client_settings)
+            
+            print(f"[{time.perf_counter():.3f}] Simulation reset to initial state (preserved settings: USE_RNN={client_settings['use_rnn']}, SAMPLING_STEPS={client_settings['sampling_steps']})")
             
             # Send confirmation to client
             await websocket.send_json({"type": "reset_confirmed"})
+            
+            # Also send the current settings to update the UI
+            await websocket.send_json({
+                "type": "settings",
+                "sampling_steps": client_settings["sampling_steps"],
+                "use_rnn": client_settings["use_rnn"]
+            })
         
         # Add a function to update sampling steps
         async def update_sampling_steps(steps):
-            global NUM_SAMPLING_STEPS
+            nonlocal client_settings
             
             # Validate the input
             if steps < 1:
@@ -303,24 +323,24 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "error", "message": "Invalid sampling steps value"})
                 return
                 
-            # Update the global variable
-            old_steps = NUM_SAMPLING_STEPS
-            NUM_SAMPLING_STEPS = steps
+            # Update the client-specific setting
+            old_steps = client_settings["sampling_steps"]
+            client_settings["sampling_steps"] = steps
             
-            print(f"[{time.perf_counter():.3f}] Updated NUM_SAMPLING_STEPS from {old_steps} to {steps}")
+            print(f"[{time.perf_counter():.3f}] Updated sampling steps for client {client_id} from {old_steps} to {steps}")
             
             # Send confirmation to client
             await websocket.send_json({"type": "steps_updated", "steps": steps})
         
         # Add a function to update USE_RNN setting
         async def update_use_rnn(use_rnn):
-            global USE_RNN
+            nonlocal client_settings
             
-            # Update the global variable
-            old_setting = USE_RNN
-            USE_RNN = use_rnn
+            # Update the client-specific setting
+            old_setting = client_settings["use_rnn"]
+            client_settings["use_rnn"] = use_rnn
             
-            print(f"[{time.perf_counter():.3f}] Updated USE_RNN from {old_setting} to {use_rnn}")
+            print(f"[{time.perf_counter():.3f}] Updated USE_RNN for client {client_id} from {old_setting} to {use_rnn}")
             
             # Send confirmation to client
             await websocket.send_json({"type": "rnn_updated", "use_rnn": use_rnn})
@@ -369,9 +389,22 @@ async def websocket_endpoint(websocket: WebSocket):
                         previous_frame = padding_image
                         frame_num = 0
                 inputs = prepare_model_inputs(previous_frame, hidden_states, x, y, is_right_click, is_left_click, list(keys_down), stoi, itos, frame_num)
-                print(f"[{time.perf_counter():.3f}] Starting model inference...")
-                previous_frame, sample_img, hidden_states, timing_info = await process_frame(model, inputs)
-                print (f'aaa setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}')
+                
+                # Use client-specific settings
+                client_use_rnn = client_settings["use_rnn"]
+                client_sampling_steps = client_settings["sampling_steps"]
+                
+                print(f"[{time.perf_counter():.3f}] Starting model inference with client settings - USE_RNN: {client_use_rnn}, SAMPLING_STEPS: {client_sampling_steps}...")
+                
+                # Pass client-specific settings to process_frame
+                previous_frame, sample_img, hidden_states, timing_info = await process_frame(
+                    model, 
+                    inputs, 
+                    use_rnn=client_use_rnn, 
+                    num_sampling_steps=client_sampling_steps
+                )
+                
+                print (f'Client {client_id} settings: USE_RNN: {client_use_rnn}, SAMPLING_STEPS: {client_sampling_steps}')
 
                 
                 timing_info['full_frame'] = time.perf_counter() - process_start_time
@@ -491,6 +524,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 if data.get("type") == "update_use_rnn":
                     print(f"[{receive_time:.3f}] Received request to update USE_RNN")
                     await update_use_rnn(data.get("use_rnn", False))
+                    continue
+                
+                # Handle settings request
+                if data.get("type") == "get_settings":
+                    print(f"[{receive_time:.3f}] Received request for current settings")
+                    await websocket.send_json({
+                        "type": "settings",
+                        "sampling_steps": client_settings["sampling_steps"],
+                        "use_rnn": client_settings["use_rnn"]
+                    })
                     continue
                 
                 # Add the input to our queue
