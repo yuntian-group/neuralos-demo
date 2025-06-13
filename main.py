@@ -48,6 +48,7 @@ MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-unfreezernn-198k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-674k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-74k"
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-x0"
 
 
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
@@ -64,9 +65,13 @@ LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 #model = initialize_model("config_final_model.yaml", "yuntian-deng/computer-model")
 
 if 'origunet' in MODEL_NAME:
-    model = initialize_model("config_final_model_origunet_nospatial.yaml", MODEL_NAME)
+    if 'x0' in MODEL_NAME:
+        model = initialize_model("config_final_model_origunet_nospatial_x0.yaml", MODEL_NAME)
+    else:
+        model = initialize_model("config_final_model_origunet_nospatial.yaml", MODEL_NAME)
 else:
     model = initialize_model("config_final_model.yaml", MODEL_NAME)
+
 
 model = model.to(device)
 #model = torch.compile(model)
