@@ -48,7 +48,8 @@ MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-unfreezernn-198k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-674k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-74k"
-MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-x0"
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-x0-22k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-online-70k"
 
 
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
@@ -207,14 +208,19 @@ def _process_frame_sync(model, inputs, use_rnn, num_sampling_steps):
         if num_sampling_steps >= 1000:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
-            sampler = DDIMSampler(model)
-            sample_latent, _ = sampler.sample(
-                S=num_sampling_steps,
-                conditioning={'c_concat': output_from_rnn},
-                batch_size=1,
-                shape=LATENT_DIMS,
-                verbose=False
-            )
+            if num_sampling_steps == 1:
+                x = torch.randn([1, *LATENT_DIMS], device=device)
+                t = torch.full((1,), 999, device=device, dtype=torch.long)
+                sample_latent = model.apply_model(x, t, {'c_concat': output_from_rnn})
+            else:
+                sampler = DDIMSampler(model)
+                sample_latent, _ = sampler.sample(
+                    S=num_sampling_steps,
+                    conditioning={'c_concat': output_from_rnn},
+                    batch_size=1,
+                    shape=LATENT_DIMS,
+                    verbose=False
+                )
     timing['unet'] = time.perf_counter() - start
     
     # Decoding
