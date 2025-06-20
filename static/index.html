@@ -112,7 +112,7 @@
                 
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="autoInputToggle" checked>
-                    <label class="form-check-label" for="autoInputToggle">Auto Input</label>
+                    <label class="form-check-label" for="autoInputToggle" id="autoInputLabel">Auto Input</label>
                 </div>
             </div>
         </div>
@@ -129,7 +129,7 @@
                             <li>Use your keyboard to type within the simulated environment</li>
                             <li>Adjust sampling steps to control quality/speed tradeoff</li>
                             <li>Toggle "Use RNN" to switch between RNN and diffusion mode</li>
-                            <li>Toggle "Auto Input" to enable/disable automatic frame generation during idle periods</li>
+                            <li>Toggle "Auto Input" to enable automatic frame generation (starts after 5s idle, then runs every 1s)</li>
                         </ul>
                     </div>
                 </div>
@@ -257,8 +257,11 @@
         
         // Auto-input mechanism
         let lastUserInputTime = 0;
+        let lastAutoInputTime = 0;
         let autoInputInterval = null;
-        const AUTO_INPUT_DELAY = 1000; // Send auto-input after 1 second of no user input
+        let autoInputActive = false; // Track if auto-input mode is active
+        const INITIAL_AUTO_INPUT_DELAY = 5000; // Start auto-input after 5 seconds of no user input
+        const AUTO_INPUT_INTERVAL = 1000; // Send auto-input every 1 second once active
         let autoInputEnabled = true; // Default to enabled
         
         // Track currently pressed keys
@@ -271,8 +274,31 @@
             
             autoInputInterval = setInterval(() => {
                 const currentTime = Date.now();
-                if (autoInputEnabled && currentTime - lastUserInputTime >= AUTO_INPUT_DELAY && lastSentPosition && isConnected) {
-                    console.log("Sending auto-input (no user activity for 1 second)");
+                
+                if (!autoInputEnabled || !lastSentPosition || !isConnected) {
+                    return;
+                }
+                
+                // Check if we should start auto-input mode
+                if (!autoInputActive && currentTime - lastUserInputTime >= INITIAL_AUTO_INPUT_DELAY) {
+                    console.log("Starting auto-input mode (no user activity for 5 seconds)");
+                    autoInputActive = true;
+                    lastAutoInputTime = currentTime;
+                    // Update UI to show auto-input is active
+                    try {
+                        const label = document.getElementById('autoInputLabel');
+                        if (label) {
+                            label.textContent = "Auto Input (Active)";
+                            label.style.color = "#28a745";
+                        }
+                    } catch (error) {
+                        console.error("Error updating auto-input UI:", error);
+                    }
+                }
+                
+                // Send auto-input if mode is active and enough time has passed
+                if (autoInputActive && currentTime - lastAutoInputTime >= AUTO_INPUT_INTERVAL) {
+                    console.log("Sending auto-input (auto-input mode active)");
                     try {
                         socket.send(JSON.stringify({
                             "x": lastSentPosition.x,
@@ -283,7 +309,7 @@
                             "keys_up": [],
                             "is_auto_input": true  // Flag to identify auto-generated inputs
                         }));
-                        updateLastUserInputTime();
+                        lastAutoInputTime = currentTime;
                     } catch (error) {
                         console.error("Error sending auto-input:", error);
                     }
@@ -296,10 +322,26 @@
                 clearInterval(autoInputInterval);
                 autoInputInterval = null;
             }
+            autoInputActive = false; // Reset auto-input mode
         }
 
         function updateLastUserInputTime() {
             lastUserInputTime = Date.now();
+            // Reset auto-input mode when user provides input
+            if (autoInputActive) {
+                console.log("User activity detected, stopping auto-input mode");
+                autoInputActive = false;
+                // Reset UI indicator
+                try {
+                    const label = document.getElementById('autoInputLabel');
+                    if (label) {
+                        label.textContent = "Auto Input";
+                        label.style.color = "";
+                    }
+                } catch (error) {
+                    console.error("Error updating auto-input UI:", error);
+                }
+            }
         }
 
         function sendInputState(x, y, isLeftClick = false, isRightClick = false) {
@@ -477,8 +519,33 @@
             console.log(`Auto-input ${autoInputEnabled ? 'enabled' : 'disabled'}`);
             
             if (autoInputEnabled) {
-                // Reset the timer when enabling
+                // Reset the timers when enabling to start fresh
                 updateLastUserInputTime();
+                lastAutoInputTime = 0;
+                autoInputActive = false;
+                // Reset UI indicator
+                try {
+                    const label = document.getElementById('autoInputLabel');
+                    if (label) {
+                        label.textContent = "Auto Input";
+                        label.style.color = "";
+                    }
+                } catch (error) {
+                    console.error("Error updating auto-input UI:", error);
+                }
+            } else {
+                // Stop auto-input mode when disabling
+                autoInputActive = false;
+                // Reset UI indicator
+                try {
+                    const label = document.getElementById('autoInputLabel');
+                    if (label) {
+                        label.textContent = "Auto Input";
+                        label.style.color = "";
+                    }
+                } catch (error) {
+                    console.error("Error updating auto-input UI:", error);
+                }
             }
         });
     </script>
