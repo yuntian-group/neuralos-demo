@@ -109,6 +109,11 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="useRnnToggle">
                     <label class="form-check-label" for="useRnnToggle">Use RNN</label>
                 </div>
+                
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="autoInputToggle" checked>
+                    <label class="form-check-label" for="autoInputToggle">Auto Input</label>
+                </div>
             </div>
         </div>
         
@@ -124,6 +129,7 @@
                             <li>Use your keyboard to type within the simulated environment</li>
                             <li>Adjust sampling steps to control quality/speed tradeoff</li>
                             <li>Toggle "Use RNN" to switch between RNN and diffusion mode</li>
+                            <li>Toggle "Auto Input" to enable/disable automatic frame generation during idle periods</li>
                         </ul>
                     </div>
                 </div>
@@ -165,6 +171,9 @@
                 isConnected = true;
                 reconnectAttempts = 0;
                 
+                // Start auto-input mechanism
+                startAutoInput();
+                
                 // Request current settings from server to sync UI
                 socket.send(JSON.stringify({
                     type: "get_settings"
@@ -176,6 +185,7 @@
             socket.onclose = function(event) {
                 console.log("WebSocket connection closed. Attempting to reconnect...");
                 isConnected = false;
+                stopAutoInput(); // Stop auto-input when connection is lost
                 clearInterval(heartbeatInterval);
                 scheduleReconnection();
             };
@@ -245,8 +255,52 @@
         let lastSentTime = 0;
         const SEND_INTERVAL = 10; // Send updates every 50ms
         
+        // Auto-input mechanism
+        let lastUserInputTime = 0;
+        let autoInputInterval = null;
+        const AUTO_INPUT_DELAY = 1000; // Send auto-input after 1 second of no user input
+        let autoInputEnabled = true; // Default to enabled
+        
         // Track currently pressed keys
         const pressedKeys = new Set();
+
+        function startAutoInput() {
+            if (autoInputInterval) {
+                clearInterval(autoInputInterval);
+            }
+            
+            autoInputInterval = setInterval(() => {
+                const currentTime = Date.now();
+                if (autoInputEnabled && currentTime - lastUserInputTime >= AUTO_INPUT_DELAY && lastSentPosition && isConnected) {
+                    console.log("Sending auto-input (no user activity for 1 second)");
+                    try {
+                        socket.send(JSON.stringify({
+                            "x": lastSentPosition.x,
+                            "y": lastSentPosition.y,
+                            "is_left_click": false,
+                            "is_right_click": false,
+                            "keys_down": [],
+                            "keys_up": [],
+                            "is_auto_input": true  // Flag to identify auto-generated inputs
+                        }));
+                        updateLastUserInputTime();
+                    } catch (error) {
+                        console.error("Error sending auto-input:", error);
+                    }
+                }
+            }, 100); // Check every 100ms
+        }
+
+        function stopAutoInput() {
+            if (autoInputInterval) {
+                clearInterval(autoInputInterval);
+                autoInputInterval = null;
+            }
+        }
+
+        function updateLastUserInputTime() {
+            lastUserInputTime = Date.now();
+        }
 
         function sendInputState(x, y, isLeftClick = false, isRightClick = false) {
             const currentTime = Date.now();
@@ -262,6 +316,9 @@
                     }));
                     lastSentPosition = { x, y };
                     lastSentTime = currentTime;
+                    
+                    // Update last user input time for auto-input mechanism
+                    updateLastUserInputTime();
                     
                     //if (isLeftClick || isRightClick) {
                     //    isProcessing = true; // Block further inputs until response
@@ -347,6 +404,7 @@
                     "keys_down": Array.from(pressedKeys),
                     "keys_up": [event.key],
                 }));
+                updateLastUserInputTime(); // Update for auto-input mechanism
             } catch (error) {
                 console.error("Error sending key up event:", error);
             }
@@ -354,6 +412,7 @@
 
         // Graceful disconnection
         window.addEventListener('beforeunload', function (e) {
+            stopAutoInput(); // Clean up auto-input interval
             if (isConnected) {
                 try {
                     //socket.send(JSON.stringify({ type: "disconnect" }));
@@ -409,6 +468,17 @@
                 }));
             } else {
                 console.error("WebSocket not connected, cannot update USE_RNN");
+            }
+        });
+        
+        // Add event listener for the auto-input toggle
+        document.getElementById('autoInputToggle').addEventListener('change', function() {
+            autoInputEnabled = this.checked;
+            console.log(`Auto-input ${autoInputEnabled ? 'enabled' : 'disabled'}`);
+            
+            if (autoInputEnabled) {
+                // Reset the timer when enabling
+                updateLastUserInputTime();
             }
         });
     </script>

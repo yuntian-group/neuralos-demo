@@ -628,7 +628,8 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
             "is_left_click": data.get("is_left_click"),
             "is_right_click": data.get("is_right_click"),
             "keys_down": data.get("keys_down", []),
-            "keys_up": data.get("keys_up", [])
+            "keys_up": data.get("keys_up", []),
+            "is_auto_input": data.get("is_auto_input", False)
         }
     else:
         # For EOS/reset records, just include minimal info
