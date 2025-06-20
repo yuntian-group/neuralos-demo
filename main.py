@@ -25,7 +25,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DEBUG_MODE = False
 DEBUG_MODE_2 = False
 NUM_MAX_FRAMES = 1
-
+TIMESTEPS = 1000
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = 384
 NUM_SAMPLING_STEPS = 32
@@ -48,8 +48,15 @@ MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-unfreezernn-198k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-674k"
 MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-74k"
-MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-x0-22k"
 MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-online-70k"
+MODEL_NAME = "yuntian-deng/computer-model-ss005-cont-lr2e5-computecanada-newnewd-freezernn-origunet-nospatial-online-x0-46k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-142k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-338k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-ddpm32-x0-140k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-ddpm32-eps-144k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-70k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-joint-onlineonly-eps22-40k"
+MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-22-38k"
 
 
 print (f'setting: DEBUG_MODE: {DEBUG_MODE}, DEBUG_MODE_2: {DEBUG_MODE_2}, NUM_MAX_FRAMES: {NUM_MAX_FRAMES}, NUM_SAMPLING_STEPS: {NUM_SAMPLING_STEPS}, MODEL_NAME: {MODEL_NAME}')
@@ -67,9 +74,17 @@ LATENT_DIMS = (16, SCREEN_HEIGHT // 8, SCREEN_WIDTH // 8)
 
 if 'origunet' in MODEL_NAME:
     if 'x0' in MODEL_NAME:
-        model = initialize_model("config_final_model_origunet_nospatial_x0.yaml", MODEL_NAME)
+        if 'ddpm32' in MODEL_NAME:
+            TIMESTEPS = 32
+            model = initialize_model("config_final_model_origunet_nospatial_x0_ddpm32.yaml", MODEL_NAME)
+        else:
+            model = initialize_model("config_final_model_origunet_nospatial_x0.yaml", MODEL_NAME)
     else:
-        model = initialize_model("config_final_model_origunet_nospatial.yaml", MODEL_NAME)
+        if 'ddpm32' in MODEL_NAME:
+            TIMESTEPS = 32
+            model = initialize_model("config_final_model_origunet_nospatial_ddpm32.yaml", MODEL_NAME)
+        else:
+            model = initialize_model("config_final_model_origunet_nospatial.yaml", MODEL_NAME)
 else:
     model = initialize_model("config_final_model.yaml", MODEL_NAME)
 
@@ -205,12 +220,12 @@ def _process_frame_sync(model, inputs, use_rnn, num_sampling_steps):
         sample_latent = output_from_rnn[:, :16]
     else:
         #NUM_SAMPLING_STEPS = 8
-        if num_sampling_steps >= 1000:
+        if num_sampling_steps >= TIMESTEPS:
             sample_latent = model.p_sample_loop(cond={'c_concat': output_from_rnn}, shape=[1, *LATENT_DIMS], return_intermediates=False, verbose=True)
         else:
             if num_sampling_steps == 1:
                 x = torch.randn([1, *LATENT_DIMS], device=device)
-                t = torch.full((1,), 999, device=device, dtype=torch.long)
+                t = torch.full((1,), TIMESTEPS-1, device=device, dtype=torch.long)
                 sample_latent = model.apply_model(x, t, {'c_concat': output_from_rnn})
             else:
                 sampler = DDIMSampler(model)
