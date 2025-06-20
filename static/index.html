@@ -260,8 +260,8 @@
         let lastAutoInputTime = 0;
         let autoInputInterval = null;
         let autoInputActive = false; // Track if auto-input mode is active
-        const INITIAL_AUTO_INPUT_DELAY = 5000; // Start auto-input after 5 seconds of no user input
-        const AUTO_INPUT_INTERVAL = 1000; // Send auto-input every 1 second once active
+        const INITIAL_AUTO_INPUT_DELAY = 2000; // Start auto-input after 2 seconds of no user input
+        const AUTO_INPUT_INTERVAL = 500; // Send auto-input every 0.5 second once active
         let autoInputEnabled = true; // Default to enabled
         
         // Track currently pressed keys
