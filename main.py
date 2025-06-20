@@ -398,6 +398,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_right_click = data.get("is_right_click")
                 keys_down_list = data.get("keys_down", [])  # Get as list
                 keys_up_list = data.get("keys_up", [])
+                is_auto_input = data.get("is_auto_input", False)
+                if is_auto_input:
+                    print (f'[{time.perf_counter():.3f}] Auto-input detected')
                 print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
                 
                 # Update the set based on the received data
