@@ -403,6 +403,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Close connection at 1 minute
                     if time_since_activity >= CONNECTION_TIMEOUT:
                         print(f"[{current_time:.3f}] Closing connection {client_id} due to timeout")
+                        
+                        # Clear the input queue before closing
+                        while not input_queue.empty():
+                            try:
+                                input_queue.get_nowait()
+                                input_queue.task_done()
+                            except asyncio.QueueEmpty:
+                                break
+                        
                         await websocket.close(code=1000, reason="User inactivity timeout")
                         return
                     

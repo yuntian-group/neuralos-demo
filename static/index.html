@@ -293,7 +293,7 @@
             autoInputInterval = setInterval(() => {
                 const currentTime = Date.now();
                 
-                if (!autoInputEnabled || !lastSentPosition || !isConnected) {
+                if (!autoInputEnabled || !lastSentPosition || !isConnected || socket.readyState !== WebSocket.OPEN) {
                     return;
                 }
                 
@@ -330,6 +330,8 @@
                         lastAutoInputTime = currentTime;
                     } catch (error) {
                         console.error("Error sending auto-input:", error);
+                        // Stop auto-input if there's an error (connection likely closed)
+                        stopAutoInput();
                     }
                 }
             }, 100); // Check every 100ms
@@ -410,14 +412,18 @@
         function resetTimeout() {
             // Send a heartbeat to reset the server's timeout
             if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: "heartbeat" }));
+                try {
+                    socket.send(JSON.stringify({ type: "heartbeat" }));
+                } catch (error) {
+                    console.error("Error sending heartbeat:", error);
+                }
             }
             stopTimeoutCountdown();
         }
 
         function sendInputState(x, y, isLeftClick = false, isRightClick = false) {
             const currentTime = Date.now();
-            if (isConnected && (isLeftClick || isRightClick || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
+            if (isConnected && socket.readyState === WebSocket.OPEN && (isLeftClick || isRightClick || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
                 try {
                     socket.send(JSON.stringify({
                         "x": x,
@@ -497,7 +503,7 @@
         });
 
         document.addEventListener("keyup", function (event) {
-            if (!isConnected) return;
+            if (!isConnected || socket.readyState !== WebSocket.OPEN) return;
             
             // Remove the key from our set of pressed keys
             pressedKeys.delete(event.key);
