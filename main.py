@@ -132,8 +132,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 connection_counter = 0
 
 # Connection timeout settings
-CONNECTION_TIMEOUT = 30  # 30 seconds timeout
-WARNING_TIME = 15  # 15 seconds warning before timeout
+CONNECTION_TIMEOUT = 20  # 20 seconds timeout
+WARNING_TIME = 10  # 10 seconds warning before timeout
 
 # Create a thread pool executor
 thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -391,7 +391,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     current_time = time.perf_counter()
                     time_since_activity = current_time - last_user_activity_time
                     
-                    # Send warning at 15 seconds
+                    print(f"[{current_time:.3f}] Timeout check - time_since_activity: {time_since_activity:.1f}s, WARNING_TIME: {WARNING_TIME}s, CONNECTION_TIMEOUT: {CONNECTION_TIMEOUT}s")
+                    
+                    # Send warning at 10 seconds
                     if time_since_activity >= WARNING_TIME and not timeout_warning_sent:
                         print(f"[{current_time:.3f}] Sending timeout warning to client {client_id}")
                         await websocket.send_json({
@@ -399,40 +401,56 @@ async def websocket_endpoint(websocket: WebSocket):
                             "timeout_in": CONNECTION_TIMEOUT - WARNING_TIME
                         })
                         timeout_warning_sent = True
+                        print(f"[{current_time:.3f}] Timeout warning sent, timeout_warning_sent: {timeout_warning_sent}")
                     
-                    # Close connection at 30 seconds
+                    # Close connection at 20 seconds
                     if time_since_activity >= CONNECTION_TIMEOUT:
-                        print(f"[{current_time:.3f}] Closing connection {client_id} due to timeout")
+                        print(f"[{current_time:.3f}] TIMEOUT REACHED! Closing connection {client_id} due to timeout")
+                        print(f"[{current_time:.3f}] time_since_activity: {time_since_activity:.1f}s >= CONNECTION_TIMEOUT: {CONNECTION_TIMEOUT}s")
                         
                         # Clear the input queue before closing
+                        queue_size_before = input_queue.qsize()
+                        print(f"[{current_time:.3f}] Clearing input queue, size before: {queue_size_before}")
                         while not input_queue.empty():
                             try:
                                 input_queue.get_nowait()
                                 input_queue.task_done()
                             except asyncio.QueueEmpty:
                                 break
+                        print(f"[{current_time:.3f}] Input queue cleared, size after: {input_queue.qsize()}")
                         
+                        print(f"[{current_time:.3f}] About to close WebSocket connection...")
                         await websocket.close(code=1000, reason="User inactivity timeout")
+                        print(f"[{current_time:.3f}] WebSocket.close() called, returning from check_timeout")
                         return
                     
                     await asyncio.sleep(1)  # Check every second
                     
                 except Exception as e:
                     print(f"[{time.perf_counter():.3f}] Error in timeout check for client {client_id}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     break
         
         # Function to update user activity
         def update_user_activity():
             nonlocal last_user_activity_time, timeout_warning_sent
+            old_time = last_user_activity_time
             last_user_activity_time = time.perf_counter()
+            print(f"[{time.perf_counter():.3f}] User activity detected for client {client_id}")
+            print(f"[{time.perf_counter():.3f}] last_user_activity_time updated: {old_time:.3f} -> {last_user_activity_time:.3f}")
+            
             if timeout_warning_sent:
                 print(f"[{time.perf_counter():.3f}] User activity detected, resetting timeout warning for client {client_id}")
                 timeout_warning_sent = False
+                print(f"[{time.perf_counter():.3f}] timeout_warning_sent reset to: {timeout_warning_sent}")
                 # Send activity reset notification to client
                 asyncio.create_task(websocket.send_json({"type": "activity_reset"}))
+                print(f"[{time.perf_counter():.3f}] Activity reset message sent to client")
         
         # Start timeout checking
         timeout_task = asyncio.create_task(check_timeout())
+        print(f"[{time.perf_counter():.3f}] Timeout task started for client {client_id}")
         
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
@@ -465,7 +483,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     # Update user activity for non-auto inputs
                     update_user_activity()
-                print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
+                print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}, time_since_activity: {time.perf_counter() - last_user_activity_time:.3f}')
                 
                 # Update the set based on the received data
                 for key in keys_down_list:
@@ -653,7 +671,8 @@ async def websocket_endpoint(websocket: WebSocket):
             except WebSocketDisconnect:
                 # Log final EOS entry
                 log_interaction(client_id, {}, is_end_of_session=True)
-                print(f"WebSocket disconnected: {client_id}")
+                print(f"[{time.perf_counter():.3f}] WebSocket disconnected: {client_id}")
+                print(f"[{time.perf_counter():.3f}] WebSocketDisconnect exception caught")
                 break
 
     except Exception as e:
