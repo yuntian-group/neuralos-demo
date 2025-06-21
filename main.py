@@ -298,6 +298,7 @@ async def websocket_endpoint(websocket: WebSocket):
         timeout_warning_sent = False
         timeout_task = None
         connection_active = True  # Flag to track if connection is still active
+        user_has_interacted = False  # Flag to track if user has started interacting
         
         # Start timing for global FPS calculation
         connection_start_time = time.perf_counter()
@@ -309,7 +310,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # Add a function to reset the simulation
         async def reset_simulation():
-            nonlocal previous_frame, hidden_states, keys_down, frame_num, is_processing, input_queue
+            nonlocal previous_frame, hidden_states, keys_down, frame_num, is_processing, input_queue, user_has_interacted
             # Keep the client settings during reset
             temp_client_settings = client_settings.copy()
             
@@ -335,11 +336,13 @@ async def websocket_endpoint(websocket: WebSocket):
             keys_down = set()
             frame_num = -1
             is_processing = False
+            user_has_interacted = False  # Reset user interaction state
             
             # Restore client settings
             client_settings.update(temp_client_settings)
             
             print(f"[{time.perf_counter():.3f}] Simulation reset to initial state (preserved settings: USE_RNN={client_settings['use_rnn']}, SAMPLING_STEPS={client_settings['sampling_steps']})")
+            print(f"[{time.perf_counter():.3f}] User interaction state reset - waiting for user to interact again")
             
             # Send confirmation to client
             await websocket.send_json({"type": "reset_confirmed"})
@@ -385,7 +388,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # Add timeout checking function
         async def check_timeout():
-            nonlocal timeout_warning_sent, timeout_task, connection_active
+            nonlocal timeout_warning_sent, timeout_task, connection_active, user_has_interacted
             
             while True:
                 try:
@@ -393,6 +396,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     if not connection_active or websocket.client_state.value >= 2:  # CLOSING or CLOSED
                         print(f"[{time.perf_counter():.3f}] Connection inactive or WebSocket closed, stopping timeout check for client {client_id}")
                         return
+                    
+                    # Don't start timeout tracking until user has actually interacted
+                    if not user_has_interacted:
+                        print(f"[{time.perf_counter():.3f}] User hasn't interacted yet, skipping timeout check for client {client_id}")
+                        await asyncio.sleep(1)  # Check every second
+                        continue
                     
                     current_time = time.perf_counter()
                     time_since_activity = current_time - last_user_activity_time
@@ -456,7 +465,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # Start timeout checking
         timeout_task = asyncio.create_task(check_timeout())
-        print(f"[{time.perf_counter():.3f}] Timeout task started for client {client_id}")
+        print(f"[{time.perf_counter():.3f}] Timeout task started for client {client_id} (waiting for user interaction)")
         
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
@@ -489,6 +498,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     # Update user activity for non-auto inputs
                     update_user_activity()
+                    # Mark that user has started interacting
+                    if not user_has_interacted:
+                        user_has_interacted = True
+                        print(f"[{time.perf_counter():.3f}] User has started interacting with canvas for client {client_id}")
                 print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}, time_since_activity: {time.perf_counter() - last_user_activity_time:.3f}')
                 
                 # Update the set based on the received data
