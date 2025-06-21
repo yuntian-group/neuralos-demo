@@ -132,8 +132,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 connection_counter = 0
 
 # Connection timeout settings
-CONNECTION_TIMEOUT = 60  # 1 minute timeout
-WARNING_TIME = 30  # 30 seconds warning before timeout
+CONNECTION_TIMEOUT = 30  # 30 seconds timeout
+WARNING_TIME = 15  # 15 seconds warning before timeout
 
 # Create a thread pool executor
 thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -391,7 +391,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     current_time = time.perf_counter()
                     time_since_activity = current_time - last_user_activity_time
                     
-                    # Send warning at 30 seconds
+                    # Send warning at 15 seconds
                     if time_since_activity >= WARNING_TIME and not timeout_warning_sent:
                         print(f"[{current_time:.3f}] Sending timeout warning to client {client_id}")
                         await websocket.send_json({
@@ -400,7 +400,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         })
                         timeout_warning_sent = True
                     
-                    # Close connection at 1 minute
+                    # Close connection at 30 seconds
                     if time_since_activity >= CONNECTION_TIMEOUT:
                         print(f"[{current_time:.3f}] Closing connection {client_id} due to timeout")
                         

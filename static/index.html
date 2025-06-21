@@ -117,7 +117,7 @@
                 
                 <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-top: 10px;">
                     <strong>Connection Timeout Warning:</strong> 
-                    No user activity detected. Connection will be dropped in <span id="timeoutCountdown">30</span> seconds.
+                    No user activity detected. Connection will be dropped in <span id="timeoutCountdown">15</span> seconds.
                     <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
                 </div>
             </div>
@@ -279,7 +279,7 @@
         
         // Timeout countdown mechanism
         let timeoutCountdownInterval = null;
-        let timeoutCountdown = 30;
+        let timeoutCountdown = 15;
         let timeoutWarningActive = false;
         
         // Track currently pressed keys
@@ -369,7 +369,7 @@
                 clearInterval(timeoutCountdownInterval);
             }
             
-            timeoutCountdown = 30;
+            timeoutCountdown = 15;
             timeoutWarningActive = true;
             
             // Show warning
@@ -400,7 +400,7 @@
             }
             
             timeoutWarningActive = false;
-            timeoutCountdown = 30;
+            timeoutCountdown = 15;
             
             // Hide warning
             const warning = document.getElementById('timeoutWarning');
