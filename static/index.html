@@ -168,6 +168,16 @@
             ctx.fillText("The neural model will render in this area", canvas.width/2, canvas.height/2 + 20);
         }
 
+        // Function to show connection status
+        function showConnectionStatus(message) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "18px Arial";
+            ctx.fillStyle = "#666666";
+            ctx.textAlign = "center";
+            ctx.fillText(message, canvas.width/2, canvas.height/2);
+        }
+
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -177,6 +187,15 @@
                 isConnected = true;
                 //connectionAttempted = false; // Reset flag for potential reconnections
                 //reconnectAttempts = 0;
+                
+                // Show brief success message
+                showConnectionStatus("Connected! Processing input...");
+                setTimeout(() => {
+                    // Clear the message after 1 second
+                    if (isConnected) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                }, 1000);
                 
                 // Start auto-input mechanism
                 startAutoInput();
@@ -493,13 +512,30 @@
         }
 
         // Capture mouse movements and clicks
-        canvas.addEventListener("mousemove", function (event) {
+        canvas.addEventListener("mousemove", async function (event) {
             // Establish connection on first mouse movement if not already connected
             if (!isConnected && !connectionAttempted) {
                 console.log("First mouse movement detected - establishing WebSocket connection");
                 connectionAttempted = true;
+                showConnectionStatus("Connecting to NeuralOS...");
                 connect();
-                //return; // Skip this event, let the next one be processed
+                
+                // Wait for connection to be established
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds max wait
+                while (!isConnected && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+                    attempts++;
+                }
+                
+                if (!isConnected) {
+                    console.error("Failed to establish connection after 5 seconds");
+                    connectionAttempted = false; // Reset flag to allow retry
+                    showConnectionStatus("Connection failed. Move mouse to retry.");
+                    return;
+                }
+                
+                console.log("Connection established, processing first mouse movement");
             }
             
             if (!isConnected || isProcessing) return;
