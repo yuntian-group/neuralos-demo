@@ -130,8 +130,7 @@
                         <h5 class="card-title">Instructions:</h5>
                         <ul class="mb-0">
                             <li>Move your mouse inside the blue box to interact with NeuralOS</li>
-                            <li>Click to perform left-click actions</li>
-                            <li>Right-click to perform context menu actions</li>
+                            <li>Click (left-click or right-click) to perform click actions</li>
                             <li>Use your keyboard to type within the simulated environment</li>
                             <li>Adjust sampling steps to control quality/speed tradeoff</li>
                             <li>Toggle "Use RNN" to switch between RNN and diffusion mode</li>
@@ -151,6 +150,7 @@
         let isConnected = false;
         let reconnectAttempts = 0;
         const MAX_RECONNECT_DELAY = 30000; // Maximum delay between reconnection attempts (30 seconds)
+        let connectionAttempted = false; // Flag to prevent multiple connection attempts
 
         let isProcessing = false;
         
@@ -175,6 +175,7 @@
             socket.onopen = function(event) {
                 console.log("WebSocket connection established");
                 isConnected = true;
+                //connectionAttempted = false; // Reset flag for potential reconnections
                 //reconnectAttempts = 0;
                 
                 // Start auto-input mechanism
@@ -204,6 +205,7 @@
                 }
                 
                 isConnected = false;
+                //connectionAttempted = false; // Reset flag to allow reconnection attempts
                 stopAutoInput(); // Stop auto-input when connection is lost
                 stopTimeoutCountdown(); // Stop timeout countdown when connection is lost
                 //clearInterval(heartbeatInterval);
@@ -275,8 +277,8 @@
             }, 1000); // Send heartbeat every 15 seconds
         }
 
-        // Initial connection
-        connect();
+        // Don't connect immediately - wait for user interaction
+        // connect();
 
         // Draw initial state on the canvas
         drawInitialCanvas();
@@ -492,6 +494,14 @@
 
         // Capture mouse movements and clicks
         canvas.addEventListener("mousemove", function (event) {
+            // Establish connection on first mouse movement if not already connected
+            if (!isConnected && !connectionAttempted) {
+                console.log("First mouse movement detected - establishing WebSocket connection");
+                connectionAttempted = true;
+                connect();
+                return; // Skip this event, let the next one be processed
+            }
+            
             if (!isConnected || isProcessing) return;
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
