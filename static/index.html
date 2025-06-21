@@ -499,7 +499,7 @@
                 console.log("First mouse movement detected - establishing WebSocket connection");
                 connectionAttempted = true;
                 connect();
-                return; // Skip this event, let the next one be processed
+                //return; // Skip this event, let the next one be processed
             }
             
             if (!isConnected || isProcessing) return;
