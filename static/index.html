@@ -114,6 +114,12 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="autoInputToggle" checked>
                     <label class="form-check-label" for="autoInputToggle" id="autoInputLabel">Auto Input</label>
                 </div>
+                
+                <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-top: 10px;">
+                    <strong>Connection Timeout Warning:</strong> 
+                    No user activity detected. Connection will be dropped in <span id="timeoutCountdown">30</span> seconds.
+                    <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
+                </div>
             </div>
         </div>
         
@@ -186,6 +192,7 @@
                 console.log("WebSocket connection closed. Attempting to reconnect...");
                 isConnected = false;
                 stopAutoInput(); // Stop auto-input when connection is lost
+                stopTimeoutCountdown(); // Stop timeout countdown when connection is lost
                 clearInterval(heartbeatInterval);
                 scheduleReconnection();
             };
@@ -219,6 +226,12 @@
                     console.log(`Received settings from server: SAMPLING_STEPS=${data.sampling_steps}, USE_RNN=${data.use_rnn}`);
                     document.getElementById('samplingSteps').value = data.sampling_steps;
                     document.getElementById('useRnnToggle').checked = data.use_rnn;
+                } else if (data.type === "timeout_warning") {
+                    console.log(`Received timeout warning: ${data.timeout_in} seconds remaining`);
+                    startTimeoutCountdown();
+                } else if (data.type === "activity_reset") {
+                    console.log("Server detected user activity, resetting timeout");
+                    stopTimeoutCountdown();
                 }
             };
         }
@@ -264,6 +277,11 @@
         const AUTO_INPUT_INTERVAL = 500; // Send auto-input every 0.5 second once active
         let autoInputEnabled = true; // Default to enabled
         
+        // Timeout countdown mechanism
+        let timeoutCountdownInterval = null;
+        let timeoutCountdown = 30;
+        let timeoutWarningActive = false;
+        
         // Track currently pressed keys
         const pressedKeys = new Set();
 
@@ -281,7 +299,7 @@
                 
                 // Check if we should start auto-input mode
                 if (!autoInputActive && currentTime - lastUserInputTime >= INITIAL_AUTO_INPUT_DELAY) {
-                    console.log("Starting auto-input mode (no user activity for 5 seconds)");
+                    console.log("Starting auto-input mode (no user activity for 2 seconds)");
                     autoInputActive = true;
                     lastAutoInputTime = currentTime;
                     // Update UI to show auto-input is active
@@ -342,6 +360,59 @@
                     console.error("Error updating auto-input UI:", error);
                 }
             }
+        }
+
+        function startTimeoutCountdown() {
+            if (timeoutCountdownInterval) {
+                clearInterval(timeoutCountdownInterval);
+            }
+            
+            timeoutCountdown = 30;
+            timeoutWarningActive = true;
+            
+            // Show warning
+            const warning = document.getElementById('timeoutWarning');
+            if (warning) {
+                warning.style.display = 'block';
+            }
+            
+            // Start countdown
+            timeoutCountdownInterval = setInterval(() => {
+                timeoutCountdown--;
+                const countdownElement = document.getElementById('timeoutCountdown');
+                if (countdownElement) {
+                    countdownElement.textContent = timeoutCountdown;
+                }
+                
+                if (timeoutCountdown <= 0) {
+                    stopTimeoutCountdown();
+                    console.log("Connection timeout countdown finished");
+                }
+            }, 1000);
+        }
+
+        function stopTimeoutCountdown() {
+            if (timeoutCountdownInterval) {
+                clearInterval(timeoutCountdownInterval);
+                timeoutCountdownInterval = null;
+            }
+            
+            timeoutWarningActive = false;
+            timeoutCountdown = 30;
+            
+            // Hide warning
+            const warning = document.getElementById('timeoutWarning');
+            if (warning) {
+                warning.style.display = 'none';
+            }
+        }
+
+        function resetTimeout() {
+            // Send a heartbeat to reset the server's timeout
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: "heartbeat" }));
+            }
+            stopTimeoutCountdown();
         }
 
         function sendInputState(x, y, isLeftClick = false, isRightClick = false) {
@@ -455,6 +526,7 @@
         // Graceful disconnection
         window.addEventListener('beforeunload', function (e) {
             stopAutoInput(); // Clean up auto-input interval
+            stopTimeoutCountdown(); // Clean up timeout countdown
             if (isConnected) {
                 try {
                     //socket.send(JSON.stringify({ type: "disconnect" }));

@@ -131,6 +131,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Add this at the top with other global variables
 connection_counter = 0
 
+# Connection timeout settings
+CONNECTION_TIMEOUT = 60  # 1 minute timeout
+WARNING_TIME = 30  # 30 seconds warning before timeout
+
 # Create a thread pool executor
 thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
@@ -289,6 +293,11 @@ async def websocket_endpoint(websocket: WebSocket):
             "sampling_steps": NUM_SAMPLING_STEPS  # Start with default global value
         }
         
+        # Connection timeout tracking
+        last_user_activity_time = time.perf_counter()
+        timeout_warning_sent = False
+        timeout_task = None
+        
         # Start timing for global FPS calculation
         connection_start_time = time.perf_counter()
         frame_count = 0
@@ -373,6 +382,49 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send confirmation to client
             await websocket.send_json({"type": "rnn_updated", "use_rnn": use_rnn})
         
+        # Add timeout checking function
+        async def check_timeout():
+            nonlocal timeout_warning_sent, timeout_task
+            
+            while True:
+                try:
+                    current_time = time.perf_counter()
+                    time_since_activity = current_time - last_user_activity_time
+                    
+                    # Send warning at 30 seconds
+                    if time_since_activity >= WARNING_TIME and not timeout_warning_sent:
+                        print(f"[{current_time:.3f}] Sending timeout warning to client {client_id}")
+                        await websocket.send_json({
+                            "type": "timeout_warning",
+                            "timeout_in": CONNECTION_TIMEOUT - WARNING_TIME
+                        })
+                        timeout_warning_sent = True
+                    
+                    # Close connection at 1 minute
+                    if time_since_activity >= CONNECTION_TIMEOUT:
+                        print(f"[{current_time:.3f}] Closing connection {client_id} due to timeout")
+                        await websocket.close(code=1000, reason="User inactivity timeout")
+                        return
+                    
+                    await asyncio.sleep(1)  # Check every second
+                    
+                except Exception as e:
+                    print(f"[{time.perf_counter():.3f}] Error in timeout check for client {client_id}: {e}")
+                    break
+        
+        # Function to update user activity
+        def update_user_activity():
+            nonlocal last_user_activity_time, timeout_warning_sent
+            last_user_activity_time = time.perf_counter()
+            if timeout_warning_sent:
+                print(f"[{time.perf_counter():.3f}] User activity detected, resetting timeout warning for client {client_id}")
+                timeout_warning_sent = False
+                # Send activity reset notification to client
+                asyncio.create_task(websocket.send_json({"type": "activity_reset"}))
+        
+        # Start timeout checking
+        timeout_task = asyncio.create_task(check_timeout())
+        
         async def process_input(data):
             nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
             
@@ -401,6 +453,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_auto_input = data.get("is_auto_input", False)
                 if is_auto_input:
                     print (f'[{time.perf_counter():.3f}] Auto-input detected')
+                else:
+                    # Update user activity for non-auto inputs
+                    update_user_activity()
                 print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}')
                 
                 # Update the set based on the received data
@@ -542,24 +597,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Handle reset command
                 if data.get("type") == "reset":
                     print(f"[{receive_time:.3f}] Received reset command")
+                    update_user_activity()  # Reset activity timer
                     await reset_simulation()
                     continue
                 
                 # Handle sampling steps update
                 if data.get("type") == "update_sampling_steps":
                     print(f"[{receive_time:.3f}] Received request to update sampling steps")
+                    update_user_activity()  # Reset activity timer
                     await update_sampling_steps(data.get("steps", 32))
                     continue
                 
                 # Handle USE_RNN update
                 if data.get("type") == "update_use_rnn":
                     print(f"[{receive_time:.3f}] Received request to update USE_RNN")
+                    update_user_activity()  # Reset activity timer
                     await update_use_rnn(data.get("use_rnn", False))
                     continue
                 
                 # Handle settings request
                 if data.get("type") == "get_settings":
                     print(f"[{receive_time:.3f}] Received request for current settings")
+                    update_user_activity()  # Reset activity timer
                     await websocket.send_json({
                         "type": "settings",
                         "sampling_steps": client_settings["sampling_steps"],
@@ -594,6 +653,14 @@ async def websocket_endpoint(websocket: WebSocket):
         traceback.print_exc()
     
     finally:
+        # Clean up timeout task
+        if timeout_task and not timeout_task.done():
+            timeout_task.cancel()
+            try:
+                await timeout_task
+            except asyncio.CancelledError:
+                pass
+        
         # Print final FPS statistics when connection ends
         if frame_num >= 0:  # Only if we processed at least one frame
             total_time = time.perf_counter() - connection_start_time
