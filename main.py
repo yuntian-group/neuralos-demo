@@ -297,6 +297,7 @@ async def websocket_endpoint(websocket: WebSocket):
         last_user_activity_time = time.perf_counter()
         timeout_warning_sent = False
         timeout_task = None
+        connection_active = True  # Flag to track if connection is still active
         
         # Start timing for global FPS calculation
         connection_start_time = time.perf_counter()
@@ -384,10 +385,15 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # Add timeout checking function
         async def check_timeout():
-            nonlocal timeout_warning_sent, timeout_task
+            nonlocal timeout_warning_sent, timeout_task, connection_active
             
             while True:
                 try:
+                    # Check if WebSocket is still connected and connection is still active
+                    if not connection_active or websocket.client_state.value >= 2:  # CLOSING or CLOSED
+                        print(f"[{time.perf_counter():.3f}] Connection inactive or WebSocket closed, stopping timeout check for client {client_id}")
+                        return
+                    
                     current_time = time.perf_counter()
                     time_since_activity = current_time - last_user_activity_time
                     
@@ -701,12 +707,19 @@ async def websocket_endpoint(websocket: WebSocket):
     
     finally:
         # Clean up timeout task
+        print(f"[{time.perf_counter():.3f}] Cleaning up connection {client_id}")
+        connection_active = False  # Signal that connection is being cleaned up
         if timeout_task and not timeout_task.done():
+            print(f"[{time.perf_counter():.3f}] Cancelling timeout task for client {client_id}")
             timeout_task.cancel()
             try:
                 await timeout_task
+                print(f"[{time.perf_counter():.3f}] Timeout task cancelled successfully for client {client_id}")
             except asyncio.CancelledError:
+                print(f"[{time.perf_counter():.3f}] Timeout task cancelled with CancelledError for client {client_id}")
                 pass
+        else:
+            print(f"[{time.perf_counter():.3f}] Timeout task already done or doesn't exist for client {client_id}")
         
         # Print final FPS statistics when connection ends
         if frame_num >= 0:  # Only if we processed at least one frame
