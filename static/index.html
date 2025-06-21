@@ -93,7 +93,7 @@
         <div class="canvas-container">
             <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-bottom: 15px;">
                 <strong>Connection Timeout Warning:</strong> 
-                No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds.
+                No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds and page will refresh automatically.
                 <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
             </div>
             
@@ -190,11 +190,24 @@
 
             socket.onclose = function(event) {
                 console.log("WebSocket connection closed. Attempting to reconnect...");
+                console.log("Close event code:", event.code, "reason:", event.reason);
+                
+                // Check if this was a timeout closure
+                if (event.code === 1000 && event.reason === "User inactivity timeout") {
+                    console.log("Connection closed due to timeout - refreshing page");
+                    stopAutoInput(); // Stop auto-input when connection is lost
+                    stopTimeoutCountdown(); // Stop timeout countdown when connection is lost
+                    //clearInterval(heartbeatInterval);
+                    // Refresh the page to reconnect
+                    window.location.reload();
+                    return;
+                }
+                
                 isConnected = false;
                 stopAutoInput(); // Stop auto-input when connection is lost
                 stopTimeoutCountdown(); // Stop timeout countdown when connection is lost
-                clearInterval(heartbeatInterval);
-                scheduleReconnection();
+                //clearInterval(heartbeatInterval);
+                //scheduleReconnection();
             };
 
             socket.onerror = function(error) {
@@ -387,8 +400,12 @@
                 }
                 
                 if (timeoutCountdown <= 0) {
+                    stopAutoInput();
                     stopTimeoutCountdown();
-                    console.log("Connection timeout countdown finished");
+                    //clearInterval(heartbeatInterval);
+                    console.log("Connection timeout countdown finished - refreshing page");
+                    // Refresh the page to reconnect
+                    window.location.reload();
                 }
             }, 1000);
         }
@@ -416,12 +433,20 @@
         }
 
         function resetTimeout() {
-            // Send a heartbeat to reset the server's timeout
-            if (socket && socket.readyState === WebSocket.OPEN) {
+            // Send a regular input to reset the server's timeout
+            if (socket && socket.readyState === WebSocket.OPEN && lastSentPosition) {
                 try {
-                    socket.send(JSON.stringify({ type: "heartbeat" }));
+                    socket.send(JSON.stringify({
+                        "x": lastSentPosition.x,
+                        "y": lastSentPosition.y,
+                        "is_left_click": false,
+                        "is_right_click": false,
+                        "keys_down": [],
+                        "keys_up": []
+                    }));
+                    updateLastUserInputTime(); // Update for auto-input mechanism
                 } catch (error) {
-                    console.error("Error sending heartbeat:", error);
+                    console.error("Error sending timeout reset input:", error);
                 }
             }
             stopTimeoutCountdown();

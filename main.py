@@ -537,8 +537,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Send the generated frame back to the client
                 print(f"[{time.perf_counter():.3f}] Sending image to client...")
-                await websocket.send_json({"image": img_str})
-                print(f"[{time.perf_counter():.3f}] Image sent. Queue size before next_input: {input_queue.qsize()}")
+                try:
+                    await websocket.send_json({"image": img_str})
+                    print(f"[{time.perf_counter():.3f}] Image sent. Queue size before next_input: {input_queue.qsize()}")
+                except RuntimeError as e:
+                    if "Cannot call 'send' once a close message has been sent" in str(e):
+                        print(f"[{time.perf_counter():.3f}] WebSocket closed, skipping image send")
+                        break
+                    else:
+                        raise e
+                except Exception as e:
+                    print(f"[{time.perf_counter():.3f}] Error sending image: {e}")
+                    break
 
                 # Log the input
                 log_interaction(client_id, data, generated_frame=sample_img)
@@ -556,6 +566,12 @@ async def websocket_endpoint(websocket: WebSocket):
             current_time = time.perf_counter()
             if input_queue.empty():
                 print(f"[{current_time:.3f}] No inputs to process. Queue is empty.")
+                is_processing = False
+                return
+            
+            # Check if WebSocket is still open by checking if it's in a closed state
+            if websocket.client_state.value >= 2:  # CLOSING or CLOSED
+                print(f"[{current_time:.3f}] WebSocket in closed state ({websocket.client_state.value}), stopping processing")
                 is_processing = False
                 return
             
@@ -656,6 +672,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Add the input to our queue
                 await input_queue.put(data)
                 print(f"[{receive_time:.3f}] Received input. Queue size now: {input_queue.qsize()}")
+                
+                # Check if WebSocket is still open before processing
+                if websocket.client_state.value >= 2:  # CLOSING or CLOSED
+                    print(f"[{receive_time:.3f}] WebSocket closed, skipping processing")
+                    continue
                 
                 # If we're not currently processing, start processing this input
                 if not is_processing:
