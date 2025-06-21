@@ -543,12 +543,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 except RuntimeError as e:
                     if "Cannot call 'send' once a close message has been sent" in str(e):
                         print(f"[{time.perf_counter():.3f}] WebSocket closed, skipping image send")
-                        break
                     else:
                         raise e
                 except Exception as e:
                     print(f"[{time.perf_counter():.3f}] Error sending image: {e}")
-                    break
 
                 # Log the input
                 log_interaction(client_id, data, generated_frame=sample_img)
