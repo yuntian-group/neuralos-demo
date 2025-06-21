@@ -468,7 +468,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"[{time.perf_counter():.3f}] Timeout task started for client {client_id} (waiting for user interaction)")
         
         async def process_input(data):
-            nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing
+            nonlocal previous_frame, hidden_states, keys_down, frame_num, frame_count, is_processing, user_has_interacted
             
             try:
                 process_start_time = time.perf_counter()
