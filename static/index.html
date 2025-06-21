@@ -135,7 +135,7 @@
                             <li>Use your keyboard to type within the simulated environment</li>
                             <li>Adjust sampling steps to control quality/speed tradeoff</li>
                             <li>Toggle "Use RNN" to switch between RNN and diffusion mode</li>
-                            <li>Toggle "Auto Input" to enable automatic frame generation (starts after 5s idle, then runs every 1s)</li>
+                            <li>Toggle "Auto Input" to enable automatic frame generation (starts after 2s idle once you move mouse inside canvas, then runs every 0.5s)</li>
                         </ul>
                     </div>
                 </div>
@@ -175,7 +175,7 @@
             socket.onopen = function(event) {
                 console.log("WebSocket connection established");
                 isConnected = true;
-                reconnectAttempts = 0;
+                //reconnectAttempts = 0;
                 
                 // Start auto-input mechanism
                 startAutoInput();
@@ -230,6 +230,10 @@
                     console.log("Simulation reset confirmed by server");
                     // Clear the canvas and reset to initial state
                     drawInitialCanvas();
+                    // Reset user interaction state
+                    userHasInteracted = false;
+                    lastSentPosition = null;
+                    console.log("Reset user interaction state - waiting for user to move mouse inside canvas");
                 } else if (data.type === "rnn_updated") {
                     console.log(`USE_RNN setting updated to: ${data.use_rnn}`);
                     // Update the toggle to match the server state
@@ -289,6 +293,7 @@
         const INITIAL_AUTO_INPUT_DELAY = 2000; // Start auto-input after 2 seconds of no user input
         const AUTO_INPUT_INTERVAL = 500; // Send auto-input every 0.5 second once active
         let autoInputEnabled = true; // Default to enabled
+        let userHasInteracted = false; // Track if user has moved mouse inside canvas
         
         // Timeout countdown mechanism
         let timeoutCountdownInterval = null;
@@ -306,7 +311,7 @@
             autoInputInterval = setInterval(() => {
                 const currentTime = Date.now();
                 
-                if (!autoInputEnabled || !lastSentPosition || !isConnected || socket.readyState !== WebSocket.OPEN) {
+                if (!autoInputEnabled || !lastSentPosition || !isConnected || socket.readyState !== WebSocket.OPEN || !userHasInteracted) {
                     return;
                 }
                 
@@ -466,6 +471,12 @@
                     }));
                     lastSentPosition = { x, y };
                     lastSentTime = currentTime;
+                    
+                    // Mark that user has interacted with the canvas
+                    if (!userHasInteracted) {
+                        userHasInteracted = true;
+                        console.log("User has interacted with canvas for the first time");
+                    }
                     
                     // Update last user input time for auto-input mechanism
                     updateLastUserInputTime();
