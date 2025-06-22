@@ -118,6 +118,17 @@ KEYS = ['\t', '\n', '\r', ' ', '!', '"', '#', '$', '%', '&', "'", '(',
         'shift', 'shiftleft', 'shiftright', 'sleep', 'space', 'stop', 'subtract', 'tab',
         'up', 'volumedown', 'volumemute', 'volumeup', 'win', 'winleft', 'winright', 'yen',
         'command', 'option', 'optionleft', 'optionright']
+
+KEYMAPPING = {
+    'arrowup': 'up',
+    'arrowdown': 'down',
+    'arrowleft': 'left',
+    'arrowright': 'right',
+    'meta': 'command',
+    'contextmenu': 'apps',
+    'control': 'ctrl',
+}
+
 INVALID_KEYS = ['f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20',
                 'f21', 'f22', 'f23', 'f24', 'select', 'separator', 'execute']
 VALID_KEYS = [key for key in KEYS if key not in INVALID_KEYS]
@@ -174,6 +185,8 @@ def prepare_model_inputs(
     }
     for key in keys_down:
         key = key.lower()
+        if key in KEYMAPPING:
+            key = KEYMAPPING[key]
         if key in stoi:
             inputs['key_events'][stoi[key]] = 1
         else:
