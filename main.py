@@ -521,8 +521,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Update the set based on the received data
                 for key in keys_down_list:
+                    key = key.lower()
+                    if key in KEYMAPPING:
+                        key = KEYMAPPING[key]
                     keys_down.add(key)
                 for key in keys_up_list:
+                    key = key.lower()
+                    if key in KEYMAPPING:
+                        key = KEYMAPPING[key]
                     if key in keys_down:  # Check if key exists to avoid KeyError
                         keys_down.remove(key)
                 if DEBUG_MODE:
