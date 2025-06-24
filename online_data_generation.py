@@ -489,7 +489,7 @@ def format_trajectory_for_processing(trajectory):
     This is a placeholder - modify based on the actual requirements.
     """
     formatted_events = []
-    
+    down_keys = set([])
     for entry in trajectory:
         # Skip control messages
         if entry.get("is_reset") or entry.get("is_eos"):
@@ -498,7 +498,6 @@ def format_trajectory_for_processing(trajectory):
         # Extract input data
         inputs = entry.get("inputs", {})
         key_events = []
-        down_keys = set([])
         for key in inputs.get("keys_down", []):
             key = key.lower()
             if key in KEYMAPPING:
