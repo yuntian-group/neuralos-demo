@@ -640,6 +640,18 @@ def main():
                 complete_sessions = [f for f in log_files if is_session_complete(f)]
                 logger.info(f"Found {len(complete_sessions)} complete sessions")
                 
+                # Sort sessions by the numeric timestamp in the filename (session_<timestamp>_*.jsonl)
+                def _extract_ts(path):
+                    """Return int timestamp from session_<ts>_<n>.jsonl; fallback to 0 if parse fails."""
+                    try:
+                        basename = os.path.basename(path)  # session_1750138392_3.jsonl
+                        ts_part = basename.split('_')[1]   # '1750138392'
+                        return int(ts_part)
+                    except Exception:  # noqa: E722
+                        return 0
+
+                complete_sessions.sort(key=_extract_ts)
+                
                 # Filter for sessions not yet processed
                 conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
