@@ -574,7 +574,16 @@
         });
 
         // Track keyboard events
+        const TROUBLESOME = new Set([
+            "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"
+        ]);
+
         document.addEventListener("keydown", function (event) {
+            // Prevent the browser from moving focus when Tab is pressed so it is sent to the backend instead
+            if (TROUBLESOME.has(event.key)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             if (!isConnected || isProcessing) return;
             
             // Get the current mouse position
@@ -586,6 +595,10 @@
         });
 
         document.addEventListener("keyup", function (event) {
+            if (TROUBLESOME.has(event.key)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             if (!isConnected || socket.readyState !== WebSocket.OPEN) return;
             
             // Get the current mouse position
