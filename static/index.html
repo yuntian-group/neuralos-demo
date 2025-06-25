@@ -575,12 +575,32 @@
 
         // Track keyboard events
         const TROUBLESOME = new Set([
-            "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"
+            "Tab",          // focus change
+            " ",            // Space - scrolls page
+            "Escape",       // Esc
+            "ArrowUp",      // scroll up
+            "ArrowDown",    // scroll down
+            "ArrowLeft",    // horiz. scroll or browser Back with Alt/⌥
+            "ArrowRight",   // horiz. scroll or browser Forward with Alt/⌥
+            "Backspace",    // navigate back in some browsers
+            "PageUp",       // scroll
+            "PageDown",     // scroll
+            "Home",         // scroll to top
+            "End",           // scroll to bottom
+            "Enter",
+            "Delete"
         ]);
 
+        function isForbiddenCombo(e) {
+            // Reload
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") return true;
+            // Close tab
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") return true;
+            return false;
+        }
+
         document.addEventListener("keydown", function (event) {
-            // Prevent the browser from moving focus when Tab is pressed so it is sent to the backend instead
-            if (TROUBLESOME.has(event.key)) {
+            if (TROUBLESOME.has(event.key) || isForbiddenCombo(event)) {
                 event.preventDefault();
                 event.stopPropagation();
             }
