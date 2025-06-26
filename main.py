@@ -145,8 +145,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 connection_counter = 0
 
 # Connection timeout settings
-CONNECTION_TIMEOUT = 20  # 20 seconds timeout
-WARNING_TIME = 10  # 10 seconds warning before timeout
+CONNECTION_TIMEOUT = 20 + 1  # 20 seconds timeout plus 1 second grace period
+WARNING_TIME = 10 + 1 # 10 seconds warning before timeout plus 1 second grace period
 
 # Create a thread pool executor
 thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
