@@ -1,5 +1,6 @@
 fastapi
 requests
+aiohttp
 sentencepiece
 matplotlib
 torch
