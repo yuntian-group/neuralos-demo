@@ -131,7 +131,10 @@ done
 echo ""
 echo "📋 Log files:"
 echo "   Dispatcher: dispatcher.log"
-echo "   Workers: workers.log"
+echo "   Workers summary: workers.log"
+for ((i=0; i<NUM_GPUS; i++)); do
+    echo "   GPU $i worker: worker_gpu_$i.log"
+done
 echo ""
 echo "Press Ctrl+C to stop the system"
 echo "================================"

@@ -34,16 +34,21 @@ class WorkerManager:
                     "--dispatcher-url", self.dispatcher_url
                 ]
                 
+                # Create log file for this worker
+                log_file = f"worker_gpu_{gpu_id}.log"
+                with open(log_file, 'w') as f:
+                    f.write(f"Starting worker for GPU {gpu_id}\n")
+                
                 process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE,
+                    stdout=open(log_file, 'a'),
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
                     bufsize=1
                 )
                 
                 self.processes.append(process)
-                print(f"✓ Started worker {gpu_id} (PID: {process.pid})")
+                print(f"✓ Started worker {gpu_id} (PID: {process.pid}) - Log: {log_file}")
                 
                 # Small delay between starts
                 time.sleep(1)
@@ -55,12 +60,20 @@ class WorkerManager:
         
         print(f"\n✓ All {self.num_gpus} workers started successfully!")
         print("Workers are running on ports:", [8001 + i for i in range(self.num_gpus)])
+        print("Worker log files:")
+        for i in range(self.num_gpus):
+            print(f"  GPU {i}: worker_gpu_{i}.log")
         return True
     
     def monitor_workers(self):
         """Monitor worker processes and print their output"""
         print("\nMonitoring workers (Ctrl+C to stop)...")
         print("-" * 50)
+        
+        # Keep track of file positions for each log file
+        log_positions = {}
+        for i in range(self.num_gpus):
+            log_positions[i] = 0
         
         try:
             while True:
@@ -69,16 +82,22 @@ class WorkerManager:
                     if process.poll() is not None:
                         print(f"⚠️  Worker {i} (PID: {process.pid}) has died!")
                         # Optionally restart it
-                        
-                # Print output from processes
-                for i, process in enumerate(self.processes):
-                    if process.stdout and process.stdout.readable():
-                        try:
-                            line = process.stdout.readline()
-                            if line:
-                                print(f"[GPU {i}] {line.strip()}")
-                        except:
-                            pass
+                
+                # Read new lines from log files
+                for i in range(self.num_gpus):
+                    log_file = f"worker_gpu_{i}.log"
+                    try:
+                        if os.path.exists(log_file):
+                            with open(log_file, 'r') as f:
+                                f.seek(log_positions[i])
+                                new_lines = f.readlines()
+                                log_positions[i] = f.tell()
+                                
+                                for line in new_lines:
+                                    print(f"[GPU {i}] {line.strip()}")
+                    except Exception as e:
+                        # File might be locked or not exist yet
+                        pass
                 
                 time.sleep(0.1)
                 
@@ -104,6 +123,13 @@ class WorkerManager:
                     process.wait()
                 except Exception as e:
                     print(f"Error stopping worker {i}: {e}")
+            
+            # Close stdout file handle if it's still open
+            try:
+                if hasattr(process, 'stdout') and process.stdout:
+                    process.stdout.close()
+            except:
+                pass
         
         print("✓ All workers stopped")
 
