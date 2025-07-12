@@ -237,7 +237,7 @@ class SessionManager:
                         "type": "queue_update",
                         "position": i + 1,
                         "total_waiting": len(self.session_queue),
-                        "estimated_wait_minutes": estimated_wait / 60,
+                        "estimated_wait_seconds": estimated_wait,
                         "active_sessions": active_sessions_count
                     })
                 except Exception as e:
@@ -355,8 +355,9 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = await websocket.receive_json()
                 
-                # Update activity
-                await session_manager.handle_user_activity(session_id)
+                # Update activity only for real user inputs, not auto inputs
+                if not data.get("is_auto_input", False):
+                    await session_manager.handle_user_activity(session_id)
                 
                 # Handle different message types
                 if data.get("type") == "heartbeat":
