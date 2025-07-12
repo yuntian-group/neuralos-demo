@@ -42,12 +42,12 @@ cleanup() {
         wait $DISPATCHER_PID 2>/dev/null
     fi
     
-    # Kill workers
-    if [[ -n $WORKERS_PID ]]; then
-        echo "Stopping workers (PID: $WORKERS_PID)..."
-        kill $WORKERS_PID 2>/dev/null
-        wait $WORKERS_PID 2>/dev/null
-    fi
+    # Kill workers by finding their processes
+    echo "Stopping workers..."
+    pkill -f "python.*worker.py.*--gpu-id" 2>/dev/null || true
+    sleep 2
+    # Force kill if any are still running
+    pkill -9 -f "python.*worker.py.*--gpu-id" 2>/dev/null || true
     
     echo "✅ System stopped"
     exit 0
@@ -97,20 +97,28 @@ echo "✅ Dispatcher started (PID: $DISPATCHER_PID)"
 
 # Start workers
 echo "🔧 Starting $NUM_GPUS GPU workers..."
-python start_workers.py --num-gpus $NUM_GPUS --no-monitor > workers.log 2>&1 &
-WORKERS_PID=$!
+python start_workers.py --num-gpus $NUM_GPUS --no-monitor > workers.log 2>&1
+WORKER_START_EXIT_CODE=$?
 
-# Wait a bit for workers to start
-sleep 5
+# Wait a bit for workers to register
+sleep 3
 
-# Check if workers started successfully
-if ! kill -0 $WORKERS_PID 2>/dev/null; then
+# Check if workers started successfully by checking the exit code and log
+if [ $WORKER_START_EXIT_CODE -ne 0 ]; then
     echo "❌ Failed to start workers. Check workers.log for errors."
     cleanup
     exit 1
 fi
 
-echo "✅ Workers started (PID: $WORKERS_PID)"
+# Check if workers are actually running by looking for their processes
+RUNNING_WORKERS=$(ps aux | grep -c "python.*worker.py.*--gpu-id" || echo "0")
+if [ "$RUNNING_WORKERS" -lt "$NUM_GPUS" ]; then
+    echo "❌ Not all workers are running. Expected $NUM_GPUS, found $RUNNING_WORKERS. Check workers.log for errors."
+    cleanup
+    exit 1
+fi
+
+echo "✅ Workers started successfully ($RUNNING_WORKERS workers running)"
 echo ""
 echo "🎉 System is ready!"
 echo "================================"
@@ -137,8 +145,10 @@ while true; do
         exit 1
     fi
     
-    if ! kill -0 $WORKERS_PID 2>/dev/null; then
-        echo "⚠️  Workers process died unexpectedly"
+    # Check if workers are still running
+    CURRENT_WORKERS=$(ps aux | grep -c "python.*worker.py.*--gpu-id" || echo "0")
+    if [ "$CURRENT_WORKERS" -lt "$NUM_GPUS" ]; then
+        echo "⚠️  Some workers died unexpectedly. Expected $NUM_GPUS, found $CURRENT_WORKERS"
         cleanup
         exit 1
     fi
