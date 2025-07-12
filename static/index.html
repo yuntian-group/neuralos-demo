@@ -282,10 +282,27 @@
                 } else if (data.type === "queue_update") {
                     console.log(`Queue update: Position ${data.position}/${data.total_waiting}, estimated wait: ${data.estimated_wait_seconds.toFixed(1)} seconds`);
                     const waitSeconds = Math.ceil(data.estimated_wait_seconds);
-                    const waitText = waitSeconds === 1 ? "1 second" : `${waitSeconds} seconds`;
+                    
+                    let waitText;
+                    if (waitSeconds === 0) {
+                        waitText = "Starting soon...";
+                    } else if (waitSeconds === 1) {
+                        waitText = "1 second";
+                    } else if (waitSeconds < 60) {
+                        waitText = `${waitSeconds} seconds`;
+                    } else {
+                        const minutes = Math.floor(waitSeconds / 60);
+                        const seconds = waitSeconds % 60;
+                        waitText = `${minutes}m ${seconds}s`;
+                    }
+                    
+                    const statusText = data.available_workers > 0 ? 
+                        "Processing queue..." : 
+                        `Position ${data.position} in queue`;
+                    
                     showConnectionStatus(
-                        `Position ${data.position} in queue`,
-                        `Estimated wait time: ${waitText}`
+                        statusText,
+                        `Estimated wait: ${waitText} (${data.active_sessions} active sessions)`
                     );
                 } else if (data.type === "session_start") {
                     console.log("Session started, clearing queue display");

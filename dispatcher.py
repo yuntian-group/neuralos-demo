@@ -228,20 +228,80 @@ class SessionManager:
             session = self.sessions.get(session_id)
             if session and session.status == SessionStatus.QUEUED:
                 try:
-                    # Calculate estimated wait time
-                    active_sessions_count = len(self.active_sessions)
-                    avg_session_time = self.MAX_SESSION_TIME_WITH_QUEUE if active_sessions_count > 0 else 30.0
-                    estimated_wait = (i + 1) * avg_session_time / max(len(self.workers), 1)
+                    # Calculate dynamic estimated wait time
+                    estimated_wait = self._calculate_dynamic_wait_time(i + 1)
                     
                     await session.websocket.send_json({
                         "type": "queue_update",
                         "position": i + 1,
                         "total_waiting": len(self.session_queue),
                         "estimated_wait_seconds": estimated_wait,
-                        "active_sessions": active_sessions_count
+                        "active_sessions": len(self.active_sessions),
+                        "available_workers": len([w for w in self.workers.values() if w.is_available])
                     })
                 except Exception as e:
                     logger.error(f"Failed to send queue update to session {session_id}: {e}")
+
+    def _calculate_dynamic_wait_time(self, position_in_queue: int) -> float:
+        """Calculate dynamic estimated wait time based on current session progress"""
+        current_time = time.time()
+        available_workers = len([w for w in self.workers.values() if w.is_available])
+        
+        # If there are available workers, no wait time
+        if available_workers > 0:
+            return 0
+        
+        # Calculate remaining time for active sessions
+        min_remaining_time = float('inf')
+        active_session_times = []
+        
+        for session_id in self.active_sessions:
+            session = self.sessions.get(session_id)
+            if session and session.last_activity:
+                if session.max_session_time:
+                    # Session has time limit (queue exists)
+                    elapsed = current_time - session.last_activity
+                    remaining = session.max_session_time - elapsed
+                    remaining = max(0, remaining)  # Don't go negative
+                else:
+                    # No time limit, estimate based on average usage
+                    elapsed = current_time - session.last_activity
+                    # Assume sessions without time limits will run for average of 45 seconds more
+                    remaining = max(45 - elapsed, 10)  # Minimum 10 seconds
+                
+                active_session_times.append(remaining)
+                min_remaining_time = min(min_remaining_time, remaining)
+        
+        # If no active sessions found, use default
+        if not active_session_times:
+            min_remaining_time = 30.0
+        
+        # Calculate estimated wait time based on position
+        num_workers = len(self.workers)
+        if num_workers == 0:
+            return 999  # No workers available
+        
+        if position_in_queue <= num_workers:
+            # User will get a worker as soon as current sessions end
+            return min_remaining_time
+        else:
+            # User needs to wait for multiple session cycles
+            cycles_to_wait = (position_in_queue - 1) // num_workers
+            remaining_in_current_cycle = (position_in_queue - 1) % num_workers + 1
+            
+            # Time for complete cycles (use average session time)
+            avg_session_time = self.MAX_SESSION_TIME_WITH_QUEUE if len(self.session_queue) > 0 else 45.0
+            full_cycles_time = cycles_to_wait * avg_session_time
+            
+            # Time for current partial cycle
+            if remaining_in_current_cycle <= len(active_session_times):
+                # Sort session times to get when the Nth worker will be free
+                sorted_times = sorted(active_session_times)
+                current_cycle_time = sorted_times[remaining_in_current_cycle - 1]
+            else:
+                current_cycle_time = min_remaining_time
+            
+            return full_cycles_time + current_cycle_time
 
     async def handle_user_activity(self, session_id: str):
         """Update user activity timestamp"""
@@ -428,7 +488,7 @@ async def periodic_queue_update():
     while True:
         try:
             await session_manager.update_queue_info()
-            await asyncio.sleep(5)  # Update every 5 seconds
+            await asyncio.sleep(2)  # Update every 2 seconds for responsive experience
         except Exception as e:
             logger.error(f"Error in periodic queue update: {e}")
 
