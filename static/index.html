@@ -93,7 +93,7 @@
         <div class="canvas-container">
             <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-bottom: 15px;">
                 <strong>Connection Timeout Warning:</strong> 
-                No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds and page will refresh automatically.
+                <span id="timeoutMessage">No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds and page will refresh automatically.</span>
                 <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
             </div>
             
@@ -169,13 +169,20 @@
         }
 
         // Function to show connection status
-        function showConnectionStatus(message) {
+        function showConnectionStatus(message, subtitle = null) {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.font = "18px Arial";
             ctx.fillStyle = "#666666";
             ctx.textAlign = "center";
+            //ctx.fillText(message, canvas.width/2, canvas.height/2 - 10);
             ctx.fillText(message, canvas.width/2, canvas.height/2);
+            
+            if (subtitle) {
+                ctx.font = "14px Arial";
+                ctx.fillStyle = "#888888";
+                ctx.fillText(subtitle, canvas.width/2, canvas.height/2 + 15);
+            }
         }
 
         function connect() {
@@ -267,9 +274,37 @@
                     document.getElementById('useRnnToggle').checked = data.use_rnn;
                 } else if (data.type === "timeout_warning") {
                     console.log(`Received timeout warning: ${data.timeout_in} seconds remaining`);
-                    startTimeoutCountdown();
+                    setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${data.timeout_in}</span> seconds and page will refresh automatically.`);
+                    startTimeoutCountdown(data.timeout_in);
                 } else if (data.type === "activity_reset") {
                     console.log("Server detected user activity, resetting timeout");
+                    stopTimeoutCountdown();
+                } else if (data.type === "queue_update") {
+                    console.log(`Queue update: Position ${data.position}/${data.total_waiting}, estimated wait: ${data.estimated_wait_minutes.toFixed(1)} minutes`);
+                    const waitMinutes = Math.ceil(data.estimated_wait_minutes);
+                    const waitText = waitMinutes === 1 ? "1 minute" : `${waitMinutes} minutes`;
+                    showConnectionStatus(
+                        `Position ${data.position} in queue`,
+                        `Estimated wait time: ${waitText}`
+                    );
+                } else if (data.type === "session_start") {
+                    console.log("Session started, clearing queue display");
+                    // Clear the queue status display
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                } else if (data.type === "session_warning") {
+                    console.log(`Session time warning: ${data.time_remaining} seconds remaining`);
+                    setTimeoutMessage(`Session time limit reached. You will be disconnected in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds due to queue waiting.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                } else if (data.type === "idle_warning") {
+                    console.log(`Idle warning: ${data.time_remaining} seconds until timeout`);
+                    setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds and page will refresh automatically.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                } else if (data.type === "grace_period") {
+                    console.log(`Grace period: ${data.time_remaining} seconds remaining`);
+                    setTimeoutMessage(`Grace period: Session will end in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds unless queue empties.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                } else if (data.type === "time_limit_removed") {
+                    console.log("Time limit removed - queue became empty");
                     stopTimeoutCountdown();
                 }
             };
@@ -401,18 +436,24 @@
             }
         }
 
-        function startTimeoutCountdown() {
+        function startTimeoutCountdown(initialTime = 10) {
             if (timeoutCountdownInterval) {
                 clearInterval(timeoutCountdownInterval);
             }
             
-            timeoutCountdown = 10;
+            timeoutCountdown = initialTime;
             timeoutWarningActive = true;
             
             // Show warning
             const warning = document.getElementById('timeoutWarning');
             if (warning) {
                 warning.style.display = 'block';
+            }
+            
+            // Update initial display
+            const countdownElement = document.getElementById('timeoutCountdown');
+            if (countdownElement) {
+                countdownElement.textContent = timeoutCountdown;
             }
             
             // Start countdown
@@ -453,6 +494,13 @@
             const warning = document.getElementById('timeoutWarning');
             if (warning) {
                 warning.style.display = 'none';
+            }
+        }
+
+        function setTimeoutMessage(message) {
+            const messageElement = document.getElementById('timeoutMessage');
+            if (messageElement) {
+                messageElement.innerHTML = message;
             }
         }
 
