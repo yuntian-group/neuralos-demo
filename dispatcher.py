@@ -391,7 +391,7 @@ class SessionManager:
     async def get_available_worker(self) -> Optional[WorkerInfo]:
         """Get an available worker"""
         for worker in self.workers.values():
-            if worker.is_available and time.time() - worker.last_ping < 30:  # Worker ping timeout
+            if worker.is_available and time.time() - worker.last_ping < 20:  # Worker ping timeout
                 return worker
         return None
 
@@ -1154,12 +1154,12 @@ async def periodic_analytics_summary():
 async def periodic_worker_health_check():
     while True:
         try:
-            await asyncio.sleep(60)  # Check every minute
+            await asyncio.sleep(15)  # Check every 15 seconds
             current_time = time.time()
             disconnected_workers = []
             
             for worker_id, worker in list(session_manager.workers.items()):
-                if current_time - worker.last_ping > 30:  # 30 second timeout
+                if current_time - worker.last_ping > 20:  # 20 second timeout
                     disconnected_workers.append((worker_id, worker.worker_address))
             
             for worker_id, worker_address in disconnected_workers:
