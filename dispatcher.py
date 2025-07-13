@@ -388,19 +388,15 @@ class SessionManager:
         return None
 
     async def add_session_to_queue(self, session: UserSession):
-        """Add a session to the queue"""
-        # Check if queue was empty before adding this session
-        was_queue_empty = len(self.session_queue) == 0
-        
+        """Add a session to the queue"""        
         self.sessions[session.session_id] = session
         self.session_queue.append(session.session_id)
         session.status = SessionStatus.QUEUED
         session.queue_start_time = time.time()
         logger.info(f"Added session {session.session_id} to queue. Queue size: {len(self.session_queue)}")
         
-        # If queue was empty and now has users, apply time limits to existing active sessions
-        if was_queue_empty and len(self.session_queue) > 0:
-            await self.apply_queue_limits_to_existing_sessions()
+        # Don't apply time limits here - wait until after processing queue
+        # to see if users actually have to wait
 
     async def apply_queue_limits_to_existing_sessions(self):
         """Apply 60-second time limits to existing unlimited sessions when queue forms"""
@@ -420,11 +416,9 @@ class SessionManager:
                 # Notify the user about the new time limit
                 try:
                     queue_size = len(self.session_queue)
-                    message = f"Other users waiting. Time remaining: 60 seconds."
                     
                     await session.websocket.send_json({
                         "type": "queue_limit_applied",
-                        "message": message,
                         "time_remaining": 60.0,
                         "queue_size": queue_size
                     })
@@ -435,8 +429,39 @@ class SessionManager:
         if affected_sessions > 0:
             analytics.log_queue_limits_applied(affected_sessions, len(self.session_queue))
 
+    async def remove_time_limits_if_queue_empty(self):
+        """Remove time limits from active sessions when queue becomes empty"""
+        if len(self.session_queue) > 0:
+            return  # Queue not empty, don't remove limits
+            
+        removed_limits = 0
+        for session_id in list(self.active_sessions.keys()):
+            session = self.sessions.get(session_id)
+            if session and session.max_session_time is not None:
+                # Remove time limit
+                session.max_session_time = None
+                session.session_limit_start_time = None
+                session.session_warning_sent = False
+                removed_limits += 1
+                
+                # Notify user that time limit was removed
+                try:
+                    await session.websocket.send_json({
+                        "type": "time_limit_removed",
+                        "reason": "queue_empty"
+                    })
+                    logger.info(f"Time limit removed from active session {session_id} (queue empty)")
+                except Exception as e:
+                    logger.error(f"Failed to notify session {session_id} about time limit removal: {e}")
+        
+        if removed_limits > 0:
+            logger.info(f"Removed time limits from {removed_limits} active sessions (queue became empty)")
+
     async def process_queue(self):
         """Process the session queue"""
+        # Track if we had any existing active sessions before processing
+        had_active_sessions = len(self.active_sessions) > 0
+        
         while self.session_queue:
             session_id = self.session_queue[0]
             session = self.sessions.get(session_id)
@@ -462,7 +487,7 @@ class SessionManager:
             session.worker_id = worker.worker_id
             session.last_activity = time.time()
             
-            # Set session time limit based on queue status
+            # Set session time limit based on queue status AFTER processing
             if len(self.session_queue) > 0:
                 session.max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
                 session.session_limit_start_time = time.time()  # Track when limit started
@@ -500,6 +525,15 @@ class SessionManager:
             
             # Start session monitoring
             asyncio.create_task(self.monitor_active_session(session_id))
+        
+        # After processing queue, if there are still users waiting AND we had existing active sessions,
+        # apply time limits to those existing sessions
+        if len(self.session_queue) > 0 and had_active_sessions:
+            await self.apply_queue_limits_to_existing_sessions()
+        
+        # If queue became empty and there are active sessions with time limits, remove them
+        elif len(self.session_queue) == 0:
+            await self.remove_time_limits_if_queue_empty()
 
     async def notify_session_start(self, session: UserSession):
         """Notify user that their session is starting"""

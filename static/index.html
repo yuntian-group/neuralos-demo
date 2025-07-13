@@ -280,29 +280,19 @@
                     console.log("Server detected user activity, resetting timeout");
                     stopTimeoutCountdown();
                 } else if (data.type === "queue_update") {
-                    console.log(`Queue update: Position ${data.position}/${data.total_waiting}, maximum wait: ${data.maximum_wait_seconds.toFixed(1)} seconds`);
+                    console.log(`Queue update: Position ${data.position}/${data.total_waiting}, wait: ${data.maximum_wait_seconds.toFixed(1)} seconds`);
                     const waitSeconds = Math.ceil(data.maximum_wait_seconds);
                     
-                    let waitText;
                     if (waitSeconds === 0) {
-                        waitText = "Starting soon...";
-                    } else if (waitSeconds === 1) {
-                        waitText = "1 second max";
+                        showConnectionStatus("Starting soon...");
+                        stopQueueCountdown();
                     } else {
-                        waitText = `${waitSeconds} seconds max`;
+                        startQueueCountdown(waitSeconds);
                     }
-                    
-                    const statusText = data.available_workers > 0 ? 
-                        "Processing queue..." : 
-                        `Position ${data.position} in queue`;
-                    
-                    showConnectionStatus(
-                        statusText,
-                        `Maximum wait: ${waitText} (${data.active_sessions} active sessions)`
-                    );
                 } else if (data.type === "session_start") {
                     console.log("Session started, clearing queue display");
-                    // Clear the queue status display
+                    // Stop queue countdown and clear the display
+                    stopQueueCountdown();
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 } else if (data.type === "session_warning") {
                     console.log(`Session time warning: ${data.time_remaining} seconds remaining`);
@@ -373,6 +363,11 @@
         let timeoutCountdownInterval = null;
         let timeoutCountdown = 10;
         let timeoutWarningActive = false;
+        
+        // Queue waiting countdown mechanism
+        let queueCountdownInterval = null;
+        let queueWaitTime = 0;
+        let queueCountdownActive = false;
         
         function startAutoInput() {
             if (autoInputInterval) {
@@ -519,6 +514,48 @@
             const warning = document.getElementById('timeoutWarning');
             if (warning) {
                 warning.style.display = 'none';
+            }
+        }
+
+        function startQueueCountdown(initialWaitTime) {
+            if (queueCountdownInterval) {
+                clearInterval(queueCountdownInterval);
+            }
+            
+            queueWaitTime = initialWaitTime;
+            queueCountdownActive = true;
+            
+            // Show initial countdown
+            updateQueueCountdownDisplay();
+            
+            // Start countdown
+            queueCountdownInterval = setInterval(() => {
+                queueWaitTime--;
+                updateQueueCountdownDisplay();
+                
+                if (queueWaitTime <= 0) {
+                    stopQueueCountdown();
+                    showConnectionStatus("Starting soon...");
+                }
+            }, 1000);
+        }
+
+        function stopQueueCountdown() {
+            if (queueCountdownInterval) {
+                clearInterval(queueCountdownInterval);
+                queueCountdownInterval = null;
+            }
+            queueCountdownActive = false;
+            queueWaitTime = 0;
+        }
+
+        function updateQueueCountdownDisplay() {
+            if (queueWaitTime <= 0) {
+                showConnectionStatus("Starting soon...");
+            } else if (queueWaitTime === 1) {
+                showConnectionStatus("Estimated wait: 1 second");
+            } else {
+                showConnectionStatus(`Estimated wait: ${queueWaitTime} seconds`);
             }
         }
 
@@ -735,6 +772,7 @@
         window.addEventListener('beforeunload', function (e) {
             stopAutoInput(); // Clean up auto-input interval
             stopTimeoutCountdown(); // Clean up timeout countdown
+            stopQueueCountdown(); // Clean up queue countdown
             if (isConnected) {
                 try {
                     //socket.send(JSON.stringify({ type: "disconnect" }));
