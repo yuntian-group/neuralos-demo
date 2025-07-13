@@ -450,16 +450,16 @@ class GPUWorker:
                 # Check if this is an interesting event
                 CONSIDER_SCROLL = False # TODO: consider scroll in future versions
                 if CONSIDER_SCROLL:
-                    is_interesting = (current_input.get("is_left_click") or 
-                                  current_input.get("is_right_click") or 
-                                  (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or 
+                    is_interesting = (current_input.get("is_left_click") or
+                                  current_input.get("is_right_click") or
+                                  (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or
                                   (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0) or
                                   current_input.get("wheel_delta_x", 0) != 0 or
-                                  current_input.get("wheel_delta_y", 0) != 0)   
-                else:   
-                    is_interesting = (current_input.get("is_left_click") or 
-                                    current_input.get("is_right_click") or 
-                                    (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or 
+                                  current_input.get("wheel_delta_y", 0) != 0)
+                else:
+                    is_interesting = (current_input.get("is_left_click") or
+                                    current_input.get("is_right_click") or
+                                    (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or
                                     (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0))
                 
                 # Process immediately if interesting
