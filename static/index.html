@@ -758,11 +758,12 @@
         }
 
         document.addEventListener("keydown", function (event) {
-            if (TROUBLESOME.has(event.key) || isForbiddenCombo(event)) {
+            // Only prevent default if user has interacted with the canvas
+            if (userHasInteracted && (TROUBLESOME.has(event.key) || isForbiddenCombo(event))) {
                 event.preventDefault();
                 event.stopPropagation();
             }
-            if (!isConnected || isProcessing) return;
+            if (!isConnected || isProcessing || !userHasInteracted) return;
             
             // Get the current mouse position
             let rect = canvas.getBoundingClientRect();
@@ -773,11 +774,12 @@
         });
 
         document.addEventListener("keyup", function (event) {
-            if (TROUBLESOME.has(event.key)) {
+            // Only prevent default if user has interacted with the canvas
+            if (userHasInteracted && TROUBLESOME.has(event.key)) {
                 event.preventDefault();
                 event.stopPropagation();
             }
-            if (!isConnected || socket.readyState !== WebSocket.OPEN) return;
+            if (!isConnected || socket.readyState !== WebSocket.OPEN || !userHasInteracted) return;
             
             // Get the current mouse position
             let rect = canvas.getBoundingClientRect();
