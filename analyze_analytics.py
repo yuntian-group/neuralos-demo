@@ -129,6 +129,7 @@ class AnalyticsAnalyzer:
         bypasses = [r for r in self.data['queue_metrics'] if r.get('type') == 'queue_bypass']
         waits = [r for r in self.data['queue_metrics'] if r.get('type') == 'queue_wait']
         statuses = [r for r in self.data['queue_metrics'] if r.get('type') == 'queue_status']
+        limit_applications = [r for r in self.data['queue_metrics'] if r.get('type') == 'queue_limits_applied']
         
         total_users = len(bypasses) + len(waits)
         if total_users == 0:
@@ -151,14 +152,29 @@ class AnalyticsAnalyzer:
         
         if statuses:
             queue_sizes = [r['queue_size'] for r in statuses]
-            estimated_waits = [r['estimated_wait'] for r in statuses if r['queue_size'] > 0]
+            # Handle both old 'estimated_wait' and new 'maximum_wait' fields for backwards compatibility
+            maximum_waits = []
+            for r in statuses:
+                if r['queue_size'] > 0:
+                    if 'maximum_wait' in r:
+                        maximum_waits.append(r['maximum_wait'])
+                    elif 'estimated_wait' in r:
+                        maximum_waits.append(r['estimated_wait'])
             
             print(f"\nQueue size statistics:")
             print(f"  Average queue size: {statistics.mean(queue_sizes):.1f}")
             print(f"  Max queue size: {max(queue_sizes)}")
             
-            if estimated_waits:
-                print(f"  Average estimated wait: {statistics.mean(estimated_waits):.1f}s")
+            if maximum_waits:
+                print(f"  Average maximum wait: {statistics.mean(maximum_waits):.1f}s")
+                print(f"  Peak maximum wait: {max(maximum_waits):.1f}s")
+        
+        if limit_applications:
+            total_affected = sum(r['affected_sessions'] for r in limit_applications)
+            print(f"\nQueue limit applications:")
+            print(f"  Times limits applied to existing sessions: {len(limit_applications)}")
+            print(f"  Total sessions affected: {total_affected}")
+            print(f"  Average sessions affected per application: {total_affected/len(limit_applications):.1f}")
         print()
     
     def analyze_ip_usage(self):

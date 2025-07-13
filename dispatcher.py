@@ -240,7 +240,24 @@ class SystemAnalytics:
         self._write_log(f"⚠️  CRITICAL: No GPU workers available! {queue_size} users waiting")
         self._write_log("   Please check worker processes and GPU availability")
     
-    def log_queue_status(self, queue_size: int, estimated_wait: float):
+    def log_queue_limits_applied(self, affected_sessions: int, queue_size: int):
+        """Log when time limits are applied to existing sessions due to queue formation"""
+        timestamp = time.time()
+        
+        # Human-readable log
+        self._write_log(f"🕐 QUEUE LIMITS APPLIED: {affected_sessions} existing sessions now have 60s limits")
+        self._write_log(f"   📊 Reason: Queue formed with {queue_size} waiting users")
+        
+        # Structured data log
+        self._write_json_log(self.queue_metrics_file, {
+            "type": "queue_limits_applied",
+            "timestamp": timestamp,
+            "affected_sessions": affected_sessions,
+            "queue_size": queue_size,
+            "time_limit_applied": 60.0
+        })
+    
+    def log_queue_status(self, queue_size: int, maximum_wait: float):
         """Log queue status"""
         self.queue_size_samples.append(queue_size)
         
@@ -252,13 +269,13 @@ class SystemAnalytics:
             "type": "queue_status",
             "timestamp": timestamp,
             "queue_size": queue_size,
-            "estimated_wait": estimated_wait,
+            "maximum_wait": maximum_wait,
             "avg_queue_size": avg_queue_size
         })
         
         # Only log to human-readable if there's a queue
         if queue_size > 0:
-            self._write_log(f"📝 QUEUE STATUS: {queue_size} users waiting | Est. wait: {estimated_wait:.1f}s")
+            self._write_log(f"📝 QUEUE STATUS: {queue_size} users waiting | Max wait: {maximum_wait:.1f}s")
             self._write_log(f"   📊 Avg queue size: {avg_queue_size:.1f}")
     
     def log_periodic_summary(self):
@@ -371,11 +388,51 @@ class SessionManager:
 
     async def add_session_to_queue(self, session: UserSession):
         """Add a session to the queue"""
+        # Check if queue was empty before adding this session
+        was_queue_empty = len(self.session_queue) == 0
+        
         self.sessions[session.session_id] = session
         self.session_queue.append(session.session_id)
         session.status = SessionStatus.QUEUED
         session.queue_start_time = time.time()
         logger.info(f"Added session {session.session_id} to queue. Queue size: {len(self.session_queue)}")
+        
+        # If queue was empty and now has users, apply time limits to existing active sessions
+        if was_queue_empty and len(self.session_queue) > 0:
+            await self.apply_queue_limits_to_existing_sessions()
+
+    async def apply_queue_limits_to_existing_sessions(self):
+        """Apply 60-second time limits to existing unlimited sessions when queue forms"""
+        current_time = time.time()
+        affected_sessions = 0
+        
+        for session_id in list(self.active_sessions.keys()):
+            session = self.sessions.get(session_id)
+            if session and session.max_session_time is None:  # Currently unlimited
+                # Give them 60 seconds from now
+                session.max_session_time = 60.0
+                session.last_activity = current_time  # Reset activity timer to start 60s countdown
+                session.session_warning_sent = False  # Reset warning flag
+                affected_sessions += 1
+                
+                # Notify the user about the new time limit
+                try:
+                    queue_size = len(self.session_queue)
+                    user_text = "user" if queue_size == 1 else "users"
+                    message = f"{queue_size} other {user_text} waiting. You have 60 seconds to finish."
+                    
+                    await session.websocket.send_json({
+                        "type": "queue_limit_applied",
+                        "message": message,
+                        "time_remaining": 60.0,
+                        "queue_size": queue_size
+                    })
+                    logger.info(f"Applied 60s time limit to existing session {session_id} due to queue formation ({queue_size} users waiting)")
+                except Exception as e:
+                    logger.error(f"Failed to notify session {session_id} about queue limit: {e}")
+        
+        if affected_sessions > 0:
+            analytics.log_queue_limits_applied(affected_sessions, len(self.session_queue))
 
     async def process_queue(self):
         """Process the session queue"""
@@ -571,14 +628,14 @@ class SessionManager:
             session = self.sessions.get(session_id)
             if session and session.status == SessionStatus.QUEUED:
                 try:
-                    # Calculate dynamic estimated wait time
-                    estimated_wait = self._calculate_dynamic_wait_time(i + 1)
+                    # Calculate maximum possible wait time
+                    maximum_wait = self._calculate_maximum_wait_time(i + 1)
                     
                     await session.websocket.send_json({
                         "type": "queue_update",
                         "position": i + 1,
                         "total_waiting": len(self.session_queue),
-                        "estimated_wait_seconds": estimated_wait,
+                        "maximum_wait_seconds": maximum_wait,
                         "active_sessions": len(self.active_sessions),
                         "available_workers": len([w for w in self.workers.values() if w.is_available])
                     })
@@ -587,69 +644,35 @@ class SessionManager:
         
         # Log queue status if there's a queue
         if self.session_queue:
-            estimated_wait = self._calculate_dynamic_wait_time(1)
-            analytics.log_queue_status(len(self.session_queue), estimated_wait)
+            maximum_wait = self._calculate_maximum_wait_time(1)
+            analytics.log_queue_status(len(self.session_queue), maximum_wait)
 
-    def _calculate_dynamic_wait_time(self, position_in_queue: int) -> float:
-        """Calculate dynamic estimated wait time based on current session progress"""
-        current_time = time.time()
+    def _calculate_maximum_wait_time(self, position_in_queue: int) -> float:
+        """Calculate maximum possible wait time (worst case scenario)"""
         available_workers = len([w for w in self.workers.values() if w.is_available])
         
         # If there are available workers, no wait time
         if available_workers > 0:
             return 0
         
-        # Calculate remaining time for active sessions
-        min_remaining_time = float('inf')
-        active_session_times = []
-        
-        for session_id in self.active_sessions:
-            session = self.sessions.get(session_id)
-            if session and session.last_activity:
-                if session.max_session_time:
-                    # Session has time limit (queue exists)
-                    elapsed = current_time - session.last_activity
-                    remaining = session.max_session_time - elapsed
-                    remaining = max(0, remaining)  # Don't go negative
-                else:
-                    # No time limit, estimate based on average usage
-                    elapsed = current_time - session.last_activity
-                    # Assume sessions without time limits will run for average of 45 seconds more
-                    remaining = max(45 - elapsed, 10)  # Minimum 10 seconds
-                
-                active_session_times.append(remaining)
-                min_remaining_time = min(min_remaining_time, remaining)
-        
-        # If no active sessions found, use default
-        if not active_session_times:
-            min_remaining_time = 30.0
-        
-        # Calculate estimated wait time based on position
+        # Calculate maximum wait time based on position and worker count
         num_workers = len(self.workers)
         if num_workers == 0:
             return 999  # No workers available
         
-        if position_in_queue <= num_workers:
-            # User will get a worker as soon as current sessions end
-            return min_remaining_time
-        else:
-            # User needs to wait for multiple session cycles
-            cycles_to_wait = (position_in_queue - 1) // num_workers
-            remaining_in_current_cycle = (position_in_queue - 1) % num_workers + 1
-            
-            # Time for complete cycles (use average session time)
-            avg_session_time = self.MAX_SESSION_TIME_WITH_QUEUE if len(self.session_queue) > 0 else 45.0
-            full_cycles_time = cycles_to_wait * avg_session_time
-            
-            # Time for current partial cycle
-            if remaining_in_current_cycle <= len(active_session_times):
-                # Sort session times to get when the Nth worker will be free
-                sorted_times = sorted(active_session_times)
-                current_cycle_time = sorted_times[remaining_in_current_cycle - 1]
-            else:
-                current_cycle_time = min_remaining_time
-            
-            return full_cycles_time + current_cycle_time
+        # When queue exists, each session is limited to 60 seconds maximum
+        # Calculate how many "waves" of users need to complete before this user gets GPU
+        waves_to_wait = (position_in_queue - 1) // num_workers
+        position_in_final_wave = (position_in_queue - 1) % num_workers + 1
+        
+        # Maximum time per wave is 60 seconds (session time limit when queue exists)
+        max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
+        
+        # Total maximum wait = (complete waves * 60s) + 60s for final wave
+        # The +1 wave accounts for current active sessions finishing
+        maximum_wait = (waves_to_wait + 1) * max_session_time
+        
+        return maximum_wait
 
     async def handle_user_activity(self, session_id: str):
         """Update user activity timestamp and reset warning flags"""

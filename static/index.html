@@ -280,20 +280,24 @@
                     console.log("Server detected user activity, resetting timeout");
                     stopTimeoutCountdown();
                 } else if (data.type === "queue_update") {
-                    console.log(`Queue update: Position ${data.position}/${data.total_waiting}, estimated wait: ${data.estimated_wait_seconds.toFixed(1)} seconds`);
-                    const waitSeconds = Math.ceil(data.estimated_wait_seconds);
+                    console.log(`Queue update: Position ${data.position}/${data.total_waiting}, maximum wait: ${data.maximum_wait_seconds.toFixed(1)} seconds`);
+                    const waitSeconds = Math.ceil(data.maximum_wait_seconds);
                     
                     let waitText;
                     if (waitSeconds === 0) {
                         waitText = "Starting soon...";
                     } else if (waitSeconds === 1) {
-                        waitText = "1 second";
+                        waitText = "1 second max";
                     } else if (waitSeconds < 60) {
-                        waitText = `${waitSeconds} seconds`;
+                        waitText = `${waitSeconds} seconds max`;
                     } else {
                         const minutes = Math.floor(waitSeconds / 60);
                         const seconds = waitSeconds % 60;
-                        waitText = `${minutes}m ${seconds}s`;
+                        if (seconds === 0) {
+                            waitText = `${minutes} minutes max`;
+                        } else {
+                            waitText = `${minutes}m ${seconds}s max`;
+                        }
                     }
                     
                     const statusText = data.available_workers > 0 ? 
@@ -302,7 +306,7 @@
                     
                     showConnectionStatus(
                         statusText,
-                        `Estimated wait: ${waitText} (${data.active_sessions} active sessions)`
+                        `Maximum wait: ${waitText} (${data.active_sessions} active sessions)`
                     );
                 } else if (data.type === "session_start") {
                     console.log("Session started, clearing queue display");
@@ -323,6 +327,10 @@
                 } else if (data.type === "time_limit_removed") {
                     console.log("Time limit removed - queue became empty");
                     stopTimeoutCountdown();
+                } else if (data.type === "queue_limit_applied") {
+                    console.log(`Queue limit applied: ${data.message}, ${data.time_remaining} seconds remaining`);
+                    setTimeoutMessage(`⏰ ${data.message} Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining));
                 }
             };
         }
