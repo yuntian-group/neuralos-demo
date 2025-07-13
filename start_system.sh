@@ -2,8 +2,37 @@
 
 # Multi-GPU Neural OS Startup Script
 
+# Function to detect number of GPUs automatically
+detect_gpu_count() {
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        # Use nvidia-smi to count GPUs
+        local gpu_count=$(nvidia-smi -L 2>/dev/null | wc -l)
+        if [ "$gpu_count" -gt 0 ]; then
+            echo "$gpu_count"
+            return 0
+        fi
+    fi
+    
+    # If nvidia-smi fails, try alternative methods
+    if [ -d "/proc/driver/nvidia/gpus" ]; then
+        local gpu_count=$(ls -d /proc/driver/nvidia/gpus/*/information 2>/dev/null | wc -l)
+        if [ "$gpu_count" -gt 0 ]; then
+            echo "$gpu_count"
+            return 0
+        fi
+    fi
+    
+    # Default fallback
+    echo "1"
+    return 1
+}
+
+# Detect GPU count automatically
+DETECTED_GPUS=$(detect_gpu_count)
+GPU_DETECTION_SUCCESS=$?
+
 # Default values
-NUM_GPUS=2
+NUM_GPUS=$DETECTED_GPUS
 DISPATCHER_PORT=8000
 
 # Parse command line arguments
@@ -19,8 +48,15 @@ while [[ $# -gt 0 ]]; do
             ;;
         -h|--help)
             echo "Usage: $0 [--num-gpus N] [--port PORT]"
-            echo "  --num-gpus N    Number of GPU workers to start (default: 2)"
+            echo "  --num-gpus N    Number of GPU workers to start (default: auto-detected)"
             echo "  --port PORT     Dispatcher port (default: 8000)"
+            echo ""
+            echo "GPU Detection:"
+            echo "  Automatically detects available GPUs using nvidia-smi"
+            echo "  Currently detected: $DETECTED_GPUS GPU(s)"
+            if [ $GPU_DETECTION_SUCCESS -ne 0 ]; then
+                echo "  ⚠️  GPU detection failed - using fallback of 1 GPU"
+            fi
             exit 0
             ;;
         *)
@@ -58,6 +94,13 @@ trap cleanup SIGINT SIGTERM
 
 echo "🚀 Starting Multi-GPU Neural OS System"
 echo "========================================"
+echo "🔍 GPU Detection: $DETECTED_GPUS GPU(s) detected"
+if [ $GPU_DETECTION_SUCCESS -ne 0 ]; then
+    echo "⚠️  GPU detection failed - using fallback count"
+elif command -v nvidia-smi >/dev/null 2>&1; then
+    echo "💎 Detected GPUs:"
+    nvidia-smi -L 2>/dev/null | sed 's/^/   /'
+fi
 echo "📊 Number of GPUs: $NUM_GPUS"
 echo "🌐 Dispatcher port: $DISPATCHER_PORT" 
 echo "💻 Worker ports: $(seq -s', ' 8001 $((8000 + NUM_GPUS)))"
