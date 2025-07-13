@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-REMOTE_HOST = "86.38.238.117"
+REMOTE_HOST = "neural-os.com"
 REMOTE_USER = "root"  # Replace with your actual username
 REMOTE_KEY_PATH = "~/.ssh/id_rsa"  # Replace with path to your SSH key
 REMOTE_DATA_DIR = "/root/neuralos-demo/train_dataset_encoded_online"  # Replace with actual path
