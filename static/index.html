@@ -550,7 +550,28 @@
                     }
                 }
                 
-                // Find the timeout that will expire first
+                // Check if ANY timeout has reached 0 (expired)
+                let expiredTimeout = null;
+                for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                    if (timeout && timeout.remaining <= 0) {
+                        expiredTimeout = { type, ...timeout };
+                        break;
+                    }
+                }
+                
+                // If any timeout expired, trigger the appropriate action
+                if (expiredTimeout) {
+                    console.log(`${expiredTimeout.type} timeout expired - refreshing page`);
+                    // Remove the expired timeout from tracking
+                    currentTimeouts[expiredTimeout.type] = null;
+                    stopAutoInput();
+                    stopTimeoutCountdown();
+                    // All timeout types result in page refresh for now
+                    window.location.reload();
+                    return;
+                }
+                
+                // Find the timeout that will expire first among remaining timeouts
                 let newEarliestTimeout = null;
                 let newEarliestTime = Infinity;
                 
@@ -561,12 +582,9 @@
                     }
                 }
                 
-                if (!newEarliestTimeout || newEarliestTimeout.remaining <= 0) {
-                    stopAutoInput();
+                // If no active timeouts remain, hide the warning
+                if (!newEarliestTimeout) {
                     stopTimeoutCountdown();
-                    console.log("Connection timeout countdown finished - refreshing page");
-                    // Refresh the page to reconnect
-                    window.location.reload();
                     return;
                 }
                 
