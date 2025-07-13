@@ -13,7 +13,7 @@ import os
 from typing import List
 
 class WorkerManager:
-    def __init__(self, num_gpus: int, dispatcher_url: str = "http://localhost:8000"):
+    def __init__(self, num_gpus: int, dispatcher_url: str = "http://localhost:7860"):
         self.num_gpus = num_gpus
         self.dispatcher_url = dispatcher_url
         self.processes: List[subprocess.Popen] = []
@@ -143,7 +143,7 @@ def main():
     parser = argparse.ArgumentParser(description="Start multiple GPU workers")
     parser.add_argument("--num-gpus", type=int, required=True, 
                        help="Number of GPU workers to start")
-    parser.add_argument("--dispatcher-url", type=str, default="http://localhost:8000",
+    parser.add_argument("--dispatcher-url", type=str, default="http://localhost:7860",
                        help="URL of the dispatcher service")
     parser.add_argument("--no-monitor", action="store_true",
                        help="Start workers but don't monitor them")

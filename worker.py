@@ -27,7 +27,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 class GPUWorker:
-    def __init__(self, worker_address: str, dispatcher_url: str = "http://localhost:8000"):
+    def __init__(self, worker_address: str, dispatcher_url: str = "http://localhost:7860"):
         self.worker_address = worker_address  # e.g., "localhost:8001", "192.168.1.100:8002"
         # Parse port from worker address
         if ':' in worker_address:
@@ -771,7 +771,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="GPU Worker for Neural OS")
     parser.add_argument("--worker-address", type=str, required=True, help="Worker address (e.g., 'localhost:8001', '192.168.1.100:8002')")
-    parser.add_argument("--dispatcher-url", type=str, default="http://localhost:8000", help="Dispatcher URL")
+    parser.add_argument("--dispatcher-url", type=str, default="http://localhost:7860", help="Dispatcher URL")
     args = parser.parse_args()
     
     # Parse port from worker address for validation

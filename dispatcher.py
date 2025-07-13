@@ -1210,7 +1210,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Dispatcher for Neural OS")
-    parser.add_argument("--port", type=int, default=8000, help="Port to run the dispatcher on")
+    parser.add_argument("--port", type=int, default=7860, help="Port to run the dispatcher on")
     args = parser.parse_args()
     
     logger.info(f"🌐 Starting dispatcher on 0.0.0.0:{args.port}")

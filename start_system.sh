@@ -148,7 +148,7 @@ echo "✅ Dispatcher started (PID: $DISPATCHER_PID)"
 
 # Start workers
 echo "🔧 Starting $NUM_GPUS GPU workers..."
-python start_workers.py --num-gpus $NUM_GPUS --no-monitor > workers.log 2>&1
+python start_workers.py --num-gpus $NUM_GPUS --dispatcher-url "http://localhost:$DISPATCHER_PORT" --no-monitor > workers.log 2>&1
 WORKER_START_EXIT_CODE=$?
 
 # Wait for workers to fully load models and register (60 seconds)
