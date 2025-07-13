@@ -275,7 +275,7 @@
                 } else if (data.type === "timeout_warning") {
                     console.log(`Received timeout warning: ${data.timeout_in} seconds remaining`);
                     setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${data.timeout_in}</span> seconds and page will refresh automatically.`);
-                    startTimeoutCountdown(data.timeout_in);
+                    startTimeoutCountdown(data.timeout_in, false); // false = show stay connected button
                 } else if (data.type === "activity_reset") {
                     console.log("Server detected user activity, resetting timeout");
                     stopTimeoutCountdown();
@@ -288,16 +288,8 @@
                         waitText = "Starting soon...";
                     } else if (waitSeconds === 1) {
                         waitText = "1 second max";
-                    } else if (waitSeconds < 60) {
-                        waitText = `${waitSeconds} seconds max`;
                     } else {
-                        const minutes = Math.floor(waitSeconds / 60);
-                        const seconds = waitSeconds % 60;
-                        if (seconds === 0) {
-                            waitText = `${minutes} minutes max`;
-                        } else {
-                            waitText = `${minutes}m ${seconds}s max`;
-                        }
+                        waitText = `${waitSeconds} seconds max`;
                     }
                     
                     const statusText = data.available_workers > 0 ? 
@@ -314,23 +306,23 @@
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 } else if (data.type === "session_warning") {
                     console.log(`Session time warning: ${data.time_remaining} seconds remaining`);
-                    setTimeoutMessage(`Session time limit reached. You will be disconnected in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds due to queue waiting.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                    setTimeoutMessage(`Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
                 } else if (data.type === "idle_warning") {
                     console.log(`Idle warning: ${data.time_remaining} seconds until timeout`);
                     setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds and page will refresh automatically.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), false); // false = show stay connected button
                 } else if (data.type === "grace_period") {
                     console.log(`Grace period: ${data.time_remaining} seconds remaining`);
-                    setTimeoutMessage(`Grace period: Session will end in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds unless queue empties.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                    setTimeoutMessage(`Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
                 } else if (data.type === "time_limit_removed") {
                     console.log("Time limit removed - queue became empty");
                     stopTimeoutCountdown();
                 } else if (data.type === "queue_limit_applied") {
                     console.log(`Queue limit applied: ${data.message}, ${data.time_remaining} seconds remaining`);
-                    setTimeoutMessage(`⏰ ${data.message} Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining));
+                    setTimeoutMessage(`⏰ ${data.message}`);
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
                 }
             };
         }
@@ -463,7 +455,7 @@
             }
         }
 
-        function startTimeoutCountdown(initialTime = 10) {
+        function startTimeoutCountdown(initialTime = 10, hideStayConnectedButton = false) {
             if (timeoutCountdownInterval) {
                 clearInterval(timeoutCountdownInterval);
             }
@@ -475,6 +467,12 @@
             const warning = document.getElementById('timeoutWarning');
             if (warning) {
                 warning.style.display = 'block';
+            }
+            
+            // Show/hide Stay Connected button based on context
+            const stayConnectedButton = warning.querySelector('button');
+            if (stayConnectedButton) {
+                stayConnectedButton.style.display = hideStayConnectedButton ? 'none' : 'inline-block';
             }
             
             // Update initial display
@@ -532,7 +530,7 @@
         }
 
         function resetTimeout() {
-            // Send a regular input to reset the server's timeout
+            // Send a stay-connected ping to reset the server's timeout
             if (socket && socket.readyState === WebSocket.OPEN && lastSentPosition) {
                 try {
                     socket.send(JSON.stringify({
@@ -543,11 +541,13 @@
                         "keys_down": [],
                         "keys_up": [],
                         "wheel_delta_x": 0,
-                        "wheel_delta_y": 0
+                        "wheel_delta_y": 0,
+                        "is_stay_connected": true  // Mark this as a stay-connected ping
                     }));
                     updateLastUserInputTime(); // Update for auto-input mechanism
+                    console.log("Stay connected ping sent to server");
                 } catch (error) {
-                    console.error("Error sending timeout reset input:", error);
+                    console.error("Error sending stay connected ping:", error);
                 }
             }
             stopTimeoutCountdown();

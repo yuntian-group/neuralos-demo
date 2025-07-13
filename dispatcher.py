@@ -329,6 +329,7 @@ class UserSession:
     worker_id: Optional[str] = None
     last_activity: Optional[float] = None
     max_session_time: Optional[float] = None
+    session_limit_start_time: Optional[float] = None  # When the time limit was first applied
     user_has_interacted: bool = False
     ip_address: Optional[str] = None
     interaction_count: int = 0
@@ -411,6 +412,7 @@ class SessionManager:
             if session and session.max_session_time is None:  # Currently unlimited
                 # Give them 60 seconds from now
                 session.max_session_time = 60.0
+                session.session_limit_start_time = current_time  # Track when limit started
                 session.last_activity = current_time  # Reset activity timer to start 60s countdown
                 session.session_warning_sent = False  # Reset warning flag
                 affected_sessions += 1
@@ -418,8 +420,7 @@ class SessionManager:
                 # Notify the user about the new time limit
                 try:
                     queue_size = len(self.session_queue)
-                    user_text = "user" if queue_size == 1 else "users"
-                    message = f"{queue_size} other {user_text} waiting. You have 60 seconds to finish."
+                    message = f"Other users waiting. Time remaining: 60 seconds."
                     
                     await session.websocket.send_json({
                         "type": "queue_limit_applied",
@@ -464,6 +465,7 @@ class SessionManager:
             # Set session time limit based on queue status
             if len(self.session_queue) > 0:
                 session.max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
+                session.session_limit_start_time = time.time()  # Track when limit started
             
             worker.is_available = False
             worker.current_session = session_id
@@ -520,9 +522,15 @@ class SessionManager:
             while session.status == SessionStatus.ACTIVE:
                 current_time = time.time()
                 
-                # Check if session has exceeded time limit
+                # Check timeouts - both session limit AND idle timeout can apply
+                session_timeout = False
+                idle_timeout = False
+                
+                # Check session time limit (when queue exists)
                 if session.max_session_time:
-                    elapsed = current_time - session.last_activity if session.last_activity else 0
+                    # Use session_limit_start_time for absolute timeout, fall back to last_activity if not set
+                    start_time = session.session_limit_start_time if session.session_limit_start_time else session.last_activity
+                    elapsed = current_time - start_time if start_time else 0
                     remaining = session.max_session_time - elapsed
                     
                     # Send warning at 15 seconds before timeout (only once)
@@ -540,6 +548,7 @@ class SessionManager:
                         # Check if queue is empty - if so, extend session
                         if len(self.session_queue) == 0:
                             session.max_session_time = None  # Remove time limit
+                            session.session_limit_start_time = None  # Clear time limit start time
                             session.session_warning_sent = False  # Reset warning since limit removed
                             await session.websocket.send_json({
                                 "type": "time_limit_removed",
@@ -553,24 +562,31 @@ class SessionManager:
                                 "queue_size": len(self.session_queue)
                             })
                     
-                    # Timeout
+                    # Session timeout
                     elif remaining <= 0:
-                        await self.end_session(session_id, SessionStatus.TIMEOUT)
-                        return
+                        session_timeout = True
                 
-                # Check idle timeout when no queue
-                elif not session.max_session_time and session.last_activity:
+                # Check idle timeout (always check when user has interacted)
+                if session.last_activity:
                     idle_time = current_time - session.last_activity
                     if idle_time >= self.IDLE_TIMEOUT:
-                        await self.end_session(session_id, SessionStatus.TIMEOUT)
-                        return
+                        idle_timeout = True
                     elif idle_time >= self.QUEUE_WARNING_TIME and not session.idle_warning_sent:
+                        # Send idle warning (even when session limit exists)
                         await session.websocket.send_json({
                             "type": "idle_warning",
                             "time_remaining": self.IDLE_TIMEOUT - idle_time
                         })
                         session.idle_warning_sent = True
-                        logger.info(f"Idle warning sent to {session_id}, time remaining: {self.IDLE_TIMEOUT - idle_time:.1f}s")
+                        reason = "with session limit" if session.max_session_time else "no session limit"
+                        logger.info(f"Idle warning sent to {session_id}, time remaining: {self.IDLE_TIMEOUT - idle_time:.1f}s ({reason})")
+                
+                # End session if either timeout triggered
+                if session_timeout or idle_timeout:
+                    timeout_reason = "session_limit" if session_timeout else "idle"
+                    logger.info(f"Ending session {session_id} due to {timeout_reason} timeout")
+                    await self.end_session(session_id, SessionStatus.TIMEOUT)
+                    return
                 
                 await asyncio.sleep(1)  # Check every second
                 
@@ -679,8 +695,16 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if session:
             old_time = session.last_activity
-            session.last_activity = time.time()
             session.interaction_count += 1
+            
+            # Always update last_activity for idle detection
+            # Session time limits are now tracked separately via session_limit_start_time
+            session.last_activity = time.time()
+            
+            if session.max_session_time is not None:
+                logger.info(f"Activity detected for session {session_id} - idle timer reset (session limit still active)")
+            else:
+                logger.info(f"Activity detected for session {session_id} - idle timer reset (no session limit)")
             
             # Reset warning flags if user activity detected after warnings
             warning_reset = False
@@ -832,6 +856,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Update activity only for real user inputs, not auto inputs
                 if not data.get("is_auto_input", False):
+                    # Log stay-connected attempts for monitoring
+                    if data.get("is_stay_connected", False):
+                        logger.info(f"Stay-connected ping from session {session_id} - idle timer will be reset")
                     await session_manager.handle_user_activity(session_id)
                 
                 # Handle different message types
