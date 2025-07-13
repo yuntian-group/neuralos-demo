@@ -182,6 +182,8 @@ class UserSession:
     ip_address: Optional[str] = None
     interaction_count: int = 0
     queue_start_time: Optional[float] = None
+    idle_warning_sent: bool = False
+    session_warning_sent: bool = False
 
 @dataclass
 class WorkerInfo:
@@ -332,23 +334,27 @@ class SessionManager:
                     elapsed = current_time - session.last_activity if session.last_activity else 0
                     remaining = session.max_session_time - elapsed
                     
-                    # Send warning at 15 seconds before timeout
-                    if remaining <= 15 and remaining > 10:
+                    # Send warning at 15 seconds before timeout (only once)
+                    if remaining <= 15 and remaining > 10 and not session.session_warning_sent:
                         await session.websocket.send_json({
                             "type": "session_warning",
                             "time_remaining": remaining,
                             "queue_size": len(self.session_queue)
                         })
+                        session.session_warning_sent = True
+                        logger.info(f"Session warning sent to {session_id}, time remaining: {remaining:.1f}s")
                     
                     # Grace period handling
                     elif remaining <= 10 and remaining > 0:
                         # Check if queue is empty - if so, extend session
                         if len(self.session_queue) == 0:
                             session.max_session_time = None  # Remove time limit
+                            session.session_warning_sent = False  # Reset warning since limit removed
                             await session.websocket.send_json({
                                 "type": "time_limit_removed",
                                 "reason": "queue_empty"
                             })
+                            logger.info(f"Session time limit removed for {session_id} (queue empty)")
                         else:
                             await session.websocket.send_json({
                                 "type": "grace_period",
@@ -367,11 +373,13 @@ class SessionManager:
                     if idle_time >= self.IDLE_TIMEOUT:
                         await self.end_session(session_id, SessionStatus.TIMEOUT)
                         return
-                    elif idle_time >= self.QUEUE_WARNING_TIME:
+                    elif idle_time >= self.QUEUE_WARNING_TIME and not session.idle_warning_sent:
                         await session.websocket.send_json({
                             "type": "idle_warning",
                             "time_remaining": self.IDLE_TIMEOUT - idle_time
                         })
+                        session.idle_warning_sent = True
+                        logger.info(f"Idle warning sent to {session_id}, time remaining: {self.IDLE_TIMEOUT - idle_time:.1f}s")
                 
                 await asyncio.sleep(1)  # Check every second
                 
@@ -510,11 +518,33 @@ class SessionManager:
             return full_cycles_time + current_cycle_time
 
     async def handle_user_activity(self, session_id: str):
-        """Update user activity timestamp"""
+        """Update user activity timestamp and reset warning flags"""
         session = self.sessions.get(session_id)
         if session:
+            old_time = session.last_activity
             session.last_activity = time.time()
             session.interaction_count += 1
+            
+            # Reset warning flags if user activity detected after warnings
+            warning_reset = False
+            if session.idle_warning_sent:
+                logger.info(f"User activity detected, resetting idle warning for session {session_id}")
+                session.idle_warning_sent = False
+                warning_reset = True
+            
+            if session.session_warning_sent:
+                logger.info(f"User activity detected, resetting session warning for session {session_id}")
+                session.session_warning_sent = False
+                warning_reset = True
+            
+            # Notify client that activity was detected and warnings are reset
+            if warning_reset:
+                try:
+                    await session.websocket.send_json({"type": "activity_reset"})
+                    logger.info(f"Activity reset message sent to session {session_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send activity reset to session {session_id}: {e}")
+            
             if not session.user_has_interacted:
                 session.user_has_interacted = True
                 logger.info(f"User started interacting in session {session_id}")
