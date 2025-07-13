@@ -274,7 +274,7 @@
                     document.getElementById('useRnnToggle').checked = data.use_rnn;
                 } else if (data.type === "timeout_warning") {
                     console.log(`Received timeout warning: ${data.timeout_in} seconds remaining`);
-                    setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${data.timeout_in}</span> seconds and page will refresh automatically.`);
+                    setTimeoutMessage(`No user activity detected. Connection will be dropped in <span id="timeoutCountdown">${data.timeout_in}</span> seconds and page will refresh automatically.`);
                     startTimeoutCountdown(data.timeout_in, false, 'idle'); // false = show stay connected button
                 } else if (data.type === "activity_reset") {
                     console.log("Server detected user activity, resetting timeout");
@@ -320,7 +320,7 @@
                     startTimeoutCountdown(Math.ceil(data.time_remaining), true, 'session'); // true = hide stay connected button
                 } else if (data.type === "idle_warning") {
                     console.log(`Idle warning: ${data.time_remaining} seconds until timeout`);
-                    setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds and page will refresh automatically.`);
+                    setTimeoutMessage(`No user activity detected. Connection will be dropped in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds and page will refresh automatically.`);
                     startTimeoutCountdown(Math.ceil(data.time_remaining), false, 'idle'); // false = show stay connected button
                 } else if (data.type === "grace_period") {
                     console.log(`Grace period: ${data.time_remaining} seconds remaining`);
@@ -605,7 +605,7 @@
                     
                     // Update timeout message based on new timeout type
                     if (newEarliestTimeout.type === 'idle') {
-                        setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${newEarliestTimeout.remaining}</span> seconds and page will refresh automatically.`);
+                        setTimeoutMessage(`No user activity detected. Connection will be dropped in <span id="timeoutCountdown">${newEarliestTimeout.remaining}</span> seconds and page will refresh automatically.`);
                     } else if (newEarliestTimeout.type === 'session' || newEarliestTimeout.type === 'grace') {
                         setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${newEarliestTimeout.remaining}</span> seconds.`);
                     }
