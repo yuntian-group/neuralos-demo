@@ -715,9 +715,9 @@
             if (queueWaitTime <= 0) {
                 showConnectionStatus("Starting soon...");
             } else if (queueWaitTime === 1) {
-                showConnectionStatus("Estimated wait: 1 second");
+                showConnectionStatus("Max wait: 1 second");
             } else {
-                showConnectionStatus(`Estimated wait: ${queueWaitTime} seconds`);
+                showConnectionStatus(`Max wait: ${queueWaitTime} seconds`);
             }
         }
 
