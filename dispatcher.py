@@ -417,7 +417,7 @@ class SessionManager:
                 # Give them 60 seconds from now
                 session.max_session_time = 60.0
                 session.session_limit_start_time = current_time  # Track when limit started
-                session.last_activity = current_time  # Reset activity timer to start 60s countdown
+                # Don't reset last_activity - that would break idle timeout tracking
                 session.session_warning_sent = False  # Reset warning flag
                 affected_sessions += 1
                 
