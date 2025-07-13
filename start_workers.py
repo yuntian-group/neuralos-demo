@@ -27,10 +27,11 @@ class WorkerManager:
                 port = 8001 + gpu_id
                 print(f"Starting worker for GPU {gpu_id} on port {port}...")
                 
-                # Start worker process
+                # Start worker process with GPU isolation
+                worker_address = f"localhost:{port}"
                 cmd = [
                     sys.executable, "worker.py",
-                    "--gpu-id", str(gpu_id),
+                    "--worker-address", worker_address,
                     "--dispatcher-url", self.dispatcher_url
                 ]
                 
@@ -39,30 +40,35 @@ class WorkerManager:
                 with open(log_file, 'w') as f:
                     f.write(f"Starting worker for GPU {gpu_id}\n")
                 
+                # Set environment variables for GPU isolation
+                env = os.environ.copy()
+                env['CUDA_VISIBLE_DEVICES'] = str(gpu_id)  # Only show this GPU to the worker
+                env['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'  # Consistent GPU ordering
+                
                 process = subprocess.Popen(
                     cmd,
                     stdout=open(log_file, 'a'),
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
-                    bufsize=1
+                    bufsize=1,
+                    env=env  # Pass the modified environment
                 )
                 
                 self.processes.append(process)
-                print(f"✓ Started worker {gpu_id} (PID: {process.pid}) - Log: {log_file}")
+                print(f"✓ Started worker {worker_address} (PID: {process.pid}) - Log: {log_file}")
                 
                 # Small delay between starts
                 time.sleep(1)
                 
             except Exception as e:
-                print(f"✗ Failed to start worker for GPU {gpu_id}: {e}")
+                print(f"✗ Failed to start worker {worker_address}: {e}")
                 self.cleanup()
                 return False
         
         print(f"\n✓ All {self.num_gpus} workers started successfully!")
-        print("Workers are running on ports:", [8001 + i for i in range(self.num_gpus)])
-        print("Worker log files:")
+        print("Worker addresses:")
         for i in range(self.num_gpus):
-            print(f"  GPU {i}: worker_gpu_{i}.log")
+            print(f"  localhost:{8001 + i} - log: worker_gpu_{i}.log")
         return True
     
     def monitor_workers(self):

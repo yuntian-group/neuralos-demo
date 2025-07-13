@@ -16,6 +16,7 @@ import concurrent.futures
 import aiohttp
 import argparse
 import uuid
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,11 +27,19 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 class GPUWorker:
-    def __init__(self, gpu_id: int, dispatcher_url: str = "http://localhost:8000"):
-        self.gpu_id = gpu_id
+    def __init__(self, worker_address: str, dispatcher_url: str = "http://localhost:8000"):
+        self.worker_address = worker_address  # e.g., "localhost:8001", "192.168.1.100:8002"
+        # Parse port from worker address
+        if ':' in worker_address:
+            self.host, port_str = worker_address.split(':')
+            self.port = int(port_str)
+        else:
+            raise ValueError(f"Invalid worker address format: {worker_address}. Expected format: 'host:port'")
+        
         self.dispatcher_url = dispatcher_url
-        self.worker_id = f"worker_{gpu_id}_{uuid.uuid4().hex[:8]}"
-        self.device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
+        self.worker_id = f"worker_{worker_address.replace(':', '_')}_{uuid.uuid4().hex[:8]}"
+        # Always use GPU 0 since CUDA_VISIBLE_DEVICES limits visibility to one GPU
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.current_session: Optional[str] = None
         self.session_data: Dict[str, Any] = {}
         
@@ -55,11 +64,18 @@ class GPUWorker:
         # Load keyboard mappings
         self._load_keyboard_mappings()
         
-        logger.info(f"GPU Worker {self.worker_id} initialized on GPU {gpu_id}")
+        logger.info(f"GPU Worker {self.worker_id} initialized for {self.worker_address} on port {self.port}")
 
     def _initialize_model(self):
-        """Initialize the model on the specified GPU"""
-        logger.info(f"Initializing model on GPU {self.gpu_id}")
+        """Initialize the model on the GPU"""
+        logger.info(f"Initializing model for worker {self.worker_address}")
+        
+        # Log CUDA environment info
+        logger.info(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
+        logger.info(f"Available CUDA devices: {torch.cuda.device_count()}")
+        if torch.cuda.is_available():
+            logger.info(f"Current CUDA device: {torch.cuda.current_device()}")
+            logger.info(f"Device name: {torch.cuda.get_device_name(0)}")  # Always GPU 0
         
         # Load latent stats
         with open('latent_stats.json', 'r') as f:
@@ -93,7 +109,7 @@ class GPUWorker:
         self.padding_image = torch.zeros(*self.LATENT_DIMS).unsqueeze(0).to(self.device)
         self.padding_image = (self.padding_image - self.DATA_NORMALIZATION['mean'].view(1, -1, 1, 1)) / self.DATA_NORMALIZATION['std'].view(1, -1, 1, 1)
         
-        logger.info(f"Model initialized successfully on GPU {self.gpu_id}")
+        logger.info(f"Model initialized successfully for worker {self.worker_address}")
 
     def _load_keyboard_mappings(self):
         """Load keyboard mappings from main.py"""
@@ -142,10 +158,10 @@ class GPUWorker:
             async with aiohttp.ClientSession() as session:
                 await session.post(f"{self.dispatcher_url}/register_worker", json={
                     "worker_id": self.worker_id,
-                    "gpu_id": self.gpu_id,
-                    "endpoint": f"http://localhost:{8001 + self.gpu_id}"
+                    "worker_address": self.worker_address,
+                    "endpoint": f"http://{self.worker_address}"
                 })
-            logger.info(f"Successfully registered worker {self.worker_id} with dispatcher")
+            logger.info(f"Successfully registered worker {self.worker_id} ({self.worker_address}) with dispatcher")
         except Exception as e:
             logger.error(f"Failed to register with dispatcher: {e}")
 
@@ -695,14 +711,15 @@ async def health_check():
     return {
         "status": "healthy",
         "worker_id": worker.worker_id if worker else None,
-        "gpu_id": worker.gpu_id if worker else None,
+        "worker_address": worker.worker_address if worker else None,
+        "port": worker.port if worker else None,
         "current_session": worker.current_session if worker else None
     }
 
-async def startup_worker(gpu_id: int, dispatcher_url: str):
+async def startup_worker(worker_address: str, dispatcher_url: str):
     """Initialize the worker"""
     global worker
-    worker = GPUWorker(gpu_id, dispatcher_url)
+    worker = GPUWorker(worker_address, dispatcher_url)
     
     # Register with dispatcher
     await worker.register_with_dispatcher()
@@ -715,16 +732,26 @@ if __name__ == "__main__":
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="GPU Worker for Neural OS")
-    parser.add_argument("--gpu-id", type=int, required=True, help="GPU ID to use")
+    parser.add_argument("--worker-address", type=str, required=True, help="Worker address (e.g., 'localhost:8001', '192.168.1.100:8002')")
     parser.add_argument("--dispatcher-url", type=str, default="http://localhost:8000", help="Dispatcher URL")
     args = parser.parse_args()
     
-    # Calculate port based on GPU ID
-    port = 8001 + args.gpu_id
+    # Parse port from worker address for validation
+    if ':' not in args.worker_address:
+        print(f"Error: Invalid worker address format: {args.worker_address}")
+        print("Expected format: 'host:port' (e.g., 'localhost:8001')")
+        sys.exit(1)
+    
+    try:
+        host, port_str = args.worker_address.split(':')
+        port = int(port_str)
+    except ValueError:
+        print(f"Error: Invalid port in worker address: {args.worker_address}")
+        sys.exit(1)
     
     @app.on_event("startup")
     async def startup_event():
-        await startup_worker(args.gpu_id, args.dispatcher_url)
+        await startup_worker(args.worker_address, args.dispatcher_url)
     
-    logger.info(f"Starting worker on GPU {args.gpu_id}, port {port}")
+    logger.info(f"Starting worker {args.worker_address}")
     uvicorn.run(app, host="0.0.0.0", port=port) 

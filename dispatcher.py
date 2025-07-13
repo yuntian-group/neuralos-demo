@@ -227,13 +227,13 @@ class SystemAnalytics:
             "avg_utilization_percent": avg_utilization
         })
     
-    def log_worker_registered(self, worker_id: str, gpu_id: int, endpoint: str):
+    def log_worker_registered(self, worker_id: str, worker_address: str, endpoint: str):
         """Log when a worker registers"""
-        self._write_log(f"⚙️  WORKER REGISTERED: {worker_id} (GPU {gpu_id}) at {endpoint}")
+        self._write_log(f"⚙️  WORKER REGISTERED: {worker_id} ({worker_address}) at {endpoint}")
     
-    def log_worker_disconnected(self, worker_id: str, gpu_id: int):
+    def log_worker_disconnected(self, worker_id: str, worker_address: str):
         """Log when a worker disconnects"""
-        self._write_log(f"⚙️  WORKER DISCONNECTED: {worker_id} (GPU {gpu_id})")
+        self._write_log(f"⚙️  WORKER DISCONNECTED: {worker_id} ({worker_address})")
     
     def log_no_workers_available(self, queue_size: int):
         """Log critical situation when no workers are available"""
@@ -340,7 +340,7 @@ class UserSession:
 @dataclass
 class WorkerInfo:
     worker_id: str
-    gpu_id: int
+    worker_address: str  # e.g., "localhost:8001", "192.168.1.100:8002"
     endpoint: str
     is_available: bool
     current_session: Optional[str] = None
@@ -352,6 +352,7 @@ class SessionManager:
         self.workers: Dict[str, WorkerInfo] = {}
         self.session_queue: List[str] = []
         self.active_sessions: Dict[str, str] = {}  # session_id -> worker_id
+        self._queue_lock = asyncio.Lock()  # Prevent race conditions in queue processing
         
         # Configuration
         self.IDLE_TIMEOUT = 20.0  # When no queue
@@ -360,19 +361,26 @@ class SessionManager:
         self.QUEUE_SESSION_WARNING_TIME = 45.0  # 15 seconds before timeout
         self.GRACE_PERIOD = 10.0
 
-    async def register_worker(self, worker_id: str, gpu_id: int, endpoint: str):
+    async def register_worker(self, worker_id: str, worker_address: str, endpoint: str):
         """Register a new worker"""
+        # Check for duplicate registrations
+        if worker_id in self.workers:
+            logger.warning(f"Worker {worker_id} already registered! Overwriting previous registration.")
+            logger.warning(f"Previous: {self.workers[worker_id].worker_address}, {self.workers[worker_id].endpoint}")
+            logger.warning(f"New: {worker_address}, {endpoint}")
+        
         self.workers[worker_id] = WorkerInfo(
             worker_id=worker_id,
-            gpu_id=gpu_id,
+            worker_address=worker_address,
             endpoint=endpoint,
             is_available=True,
             last_ping=time.time()
         )
-        logger.info(f"Registered worker {worker_id} on GPU {gpu_id} at {endpoint}")
+        logger.info(f"Registered worker {worker_id} ({worker_address}) at {endpoint}")
+        logger.info(f"Total workers now: {len(self.workers)} - {[w.worker_id for w in self.workers.values()]}")
         
         # Log worker registration
-        analytics.log_worker_registered(worker_id, gpu_id, endpoint)
+        analytics.log_worker_registered(worker_id, worker_address, endpoint)
         
         # Log GPU status
         total_gpus = len(self.workers)
@@ -459,81 +467,89 @@ class SessionManager:
 
     async def process_queue(self):
         """Process the session queue"""
-        # Track if we had any existing active sessions before processing
-        had_active_sessions = len(self.active_sessions) > 0
-        
-        while self.session_queue:
-            session_id = self.session_queue[0]
-            session = self.sessions.get(session_id)
+        async with self._queue_lock:  # Prevent race conditions
+            # Track if we had any existing active sessions before processing
+            had_active_sessions = len(self.active_sessions) > 0
             
-            if not session or session.status != SessionStatus.QUEUED:
+            # Add detailed logging for debugging
+            logger.info(f"Processing queue: {len(self.session_queue)} waiting, {len(self.active_sessions)} active")
+            logger.info(f"Available workers: {[f'{w.worker_id}({w.worker_address})' for w in self.workers.values() if w.is_available]}")
+            logger.info(f"Busy workers: {[f'{w.worker_id}({w.worker_address})' for w in self.workers.values() if not w.is_available]}")
+            
+            while self.session_queue:
+                session_id = self.session_queue[0]
+                session = self.sessions.get(session_id)
+                
+                if not session or session.status != SessionStatus.QUEUED:
+                    self.session_queue.pop(0)
+                    continue
+                    
+                worker = await self.get_available_worker()
+                if not worker:
+                    # Log critical situation if no workers are available
+                    if len(self.workers) == 0:
+                        analytics.log_no_workers_available(len(self.session_queue))
+                    logger.info(f"No available workers for session {session_id}. Queue processing stopped.")
+                    break  # No available workers
+                    
+                # Calculate wait time
+                wait_time = time.time() - session.queue_start_time if session.queue_start_time else 0
+                queue_position = self.session_queue.index(session_id) + 1
+                
+                # Assign session to worker
                 self.session_queue.pop(0)
-                continue
+                session.status = SessionStatus.ACTIVE
+                session.worker_id = worker.worker_id
+                session.last_activity = time.time()
                 
-            worker = await self.get_available_worker()
-            if not worker:
-                # Log critical situation if no workers are available
-                if len(self.workers) == 0:
-                    analytics.log_no_workers_available(len(self.session_queue))
-                break  # No available workers
+                # Set session time limit based on queue status AFTER processing
+                if len(self.session_queue) > 0:
+                    session.max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
+                    session.session_limit_start_time = time.time()  # Track when limit started
                 
-            # Calculate wait time
-            wait_time = time.time() - session.queue_start_time if session.queue_start_time else 0
-            queue_position = self.session_queue.index(session_id) + 1
+                worker.is_available = False
+                worker.current_session = session_id
+                self.active_sessions[session_id] = worker.worker_id
+                
+                logger.info(f"Assigned session {session_id} to worker {worker.worker_id}")
+                logger.info(f"Active sessions now: {len(self.active_sessions)}, Available workers: {len([w for w in self.workers.values() if w.is_available])}")
+                
+                # Log analytics
+                if wait_time > 0:
+                    analytics.log_queue_wait(session.client_id, wait_time, queue_position)
+                else:
+                    analytics.log_queue_bypass(session.client_id)
+                
+                # Log GPU status
+                total_gpus = len(self.workers)
+                active_gpus = len([w for w in self.workers.values() if not w.is_available])
+                available_gpus = total_gpus - active_gpus
+                analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
+                
+                # Initialize session on worker with client_id for logging
+                try:
+                    async with aiohttp.ClientSession() as client_session:
+                        await client_session.post(f"{worker.endpoint}/init_session", json={
+                            "session_id": session_id,
+                            "client_id": session.client_id
+                        })
+                except Exception as e:
+                    logger.error(f"Failed to initialize session on worker {worker.worker_id}: {e}")
+                
+                # Notify user that their session is starting
+                await self.notify_session_start(session)
+                
+                # Start session monitoring
+                asyncio.create_task(self.monitor_active_session(session_id))
             
-            # Assign session to worker
-            self.session_queue.pop(0)
-            session.status = SessionStatus.ACTIVE
-            session.worker_id = worker.worker_id
-            session.last_activity = time.time()
+            # After processing queue, if there are still users waiting AND we had existing active sessions,
+            # apply time limits to those existing sessions
+            if len(self.session_queue) > 0 and had_active_sessions:
+                await self.apply_queue_limits_to_existing_sessions()
             
-            # Set session time limit based on queue status AFTER processing
-            if len(self.session_queue) > 0:
-                session.max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
-                session.session_limit_start_time = time.time()  # Track when limit started
-            
-            worker.is_available = False
-            worker.current_session = session_id
-            self.active_sessions[session_id] = worker.worker_id
-            
-            logger.info(f"Assigned session {session_id} to worker {worker.worker_id}")
-            
-            # Log analytics
-            if wait_time > 0:
-                analytics.log_queue_wait(session.client_id, wait_time, queue_position)
-            else:
-                analytics.log_queue_bypass(session.client_id)
-            
-            # Log GPU status
-            total_gpus = len(self.workers)
-            active_gpus = len([w for w in self.workers.values() if not w.is_available])
-            available_gpus = total_gpus - active_gpus
-            analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
-            
-            # Initialize session on worker with client_id for logging
-            try:
-                async with aiohttp.ClientSession() as client_session:
-                    await client_session.post(f"{worker.endpoint}/init_session", json={
-                        "session_id": session_id,
-                        "client_id": session.client_id
-                    })
-            except Exception as e:
-                logger.error(f"Failed to initialize session on worker {worker.worker_id}: {e}")
-            
-            # Notify user that their session is starting
-            await self.notify_session_start(session)
-            
-            # Start session monitoring
-            asyncio.create_task(self.monitor_active_session(session_id))
-        
-        # After processing queue, if there are still users waiting AND we had existing active sessions,
-        # apply time limits to those existing sessions
-        if len(self.session_queue) > 0 and had_active_sessions:
-            await self.apply_queue_limits_to_existing_sessions()
-        
-        # If queue became empty and there are active sessions with time limits, remove them
-        elif len(self.session_queue) == 0:
-            await self.remove_time_limits_if_queue_empty()
+            # If queue became empty and there are active sessions with time limits, remove them
+            elif len(self.session_queue) == 0:
+                await self.remove_time_limits_if_queue_empty()
 
     async def notify_session_start(self, session: UserSession):
         """Notify user that their session is starting"""
@@ -646,6 +662,10 @@ class SessionManager:
         # Free up the worker
         if session.worker_id and session.worker_id in self.workers:
             worker = self.workers[session.worker_id]
+            if not worker.is_available:  # Only log if worker was actually busy
+                logger.info(f"Freeing worker {worker.worker_id} from session {session_id}")
+            else:
+                logger.warning(f"Worker {worker.worker_id} was already available when freeing from session {session_id}")
             worker.is_available = True
             worker.current_session = None
             
@@ -668,6 +688,9 @@ class SessionManager:
             del self.active_sessions[session_id]
             
         logger.info(f"Ended session {session_id} with status {status}")
+        
+        # Validate system state consistency
+        await self._validate_system_state()
         
         # Process next in queue
         asyncio.create_task(self.process_queue())
@@ -773,6 +796,43 @@ class SessionManager:
                 session.user_has_interacted = True
                 logger.info(f"User started interacting in session {session_id}")
 
+    async def _validate_system_state(self):
+        """Validate system state consistency for debugging"""
+        try:
+            # Count active sessions
+            active_sessions_count = len(self.active_sessions)
+            busy_workers_count = len([w for w in self.workers.values() if not w.is_available])
+            
+            # Check for inconsistencies
+            if active_sessions_count != busy_workers_count:
+                logger.error(f"INCONSISTENCY: Active sessions ({active_sessions_count}) != Busy workers ({busy_workers_count})")
+                logger.error(f"Active sessions: {list(self.active_sessions.keys())}")
+                logger.error(f"Busy workers: {[w.worker_id for w in self.workers.values() if not w.is_available]}")
+                
+                # Log detailed state
+                for session_id, worker_id in self.active_sessions.items():
+                    session = self.sessions.get(session_id)
+                    worker = self.workers.get(worker_id)
+                    logger.error(f"Session {session_id}: status={session.status if session else 'MISSING'}, worker={worker_id}")
+                    if worker:
+                        logger.error(f"Worker {worker_id}: available={worker.is_available}, current_session={worker.current_session}")
+                
+            # Check for orphaned workers
+            for worker in self.workers.values():
+                if not worker.is_available and worker.current_session not in self.active_sessions:
+                    logger.error(f"ORPHANED WORKER: {worker.worker_id} is busy but session {worker.current_session} not in active_sessions")
+                    
+            # Check for sessions without workers
+            for session_id in self.active_sessions:
+                session = self.sessions.get(session_id)
+                if session and session.status == SessionStatus.ACTIVE:
+                    worker = self.workers.get(session.worker_id)
+                    if not worker or worker.is_available:
+                        logger.error(f"ACTIVE SESSION WITHOUT WORKER: {session_id} has no busy worker assigned")
+                        
+        except Exception as e:
+            logger.error(f"Error in system state validation: {e}")
+
     async def _forward_to_worker(self, worker: WorkerInfo, session_id: str, data: dict):
         """Forward input to worker asynchronously"""
         try:
@@ -808,7 +868,7 @@ async def register_worker(worker_info: dict):
     """Endpoint for workers to register themselves"""
     await session_manager.register_worker(
         worker_info["worker_id"],
-        worker_info["gpu_id"], 
+        worker_info["worker_address"], 
         worker_info["endpoint"]
     )
     return {"status": "registered"}
@@ -977,6 +1037,15 @@ async def periodic_queue_update():
         except Exception as e:
             logger.error(f"Error in periodic queue update: {e}")
 
+# Background task to periodically validate system state
+async def periodic_system_validation():
+    while True:
+        try:
+            await asyncio.sleep(10)  # Validate every 10 seconds
+            await session_manager._validate_system_state()
+        except Exception as e:
+            logger.error(f"Error in periodic system validation: {e}")
+
 # Background task to periodically log analytics summary
 async def periodic_analytics_summary():
     while True:
@@ -996,12 +1065,12 @@ async def periodic_worker_health_check():
             
             for worker_id, worker in list(session_manager.workers.items()):
                 if current_time - worker.last_ping > 30:  # 30 second timeout
-                    disconnected_workers.append((worker_id, worker.gpu_id))
+                    disconnected_workers.append((worker_id, worker.worker_address))
             
-            for worker_id, gpu_id in disconnected_workers:
-                analytics.log_worker_disconnected(worker_id, gpu_id)
+            for worker_id, worker_address in disconnected_workers:
+                analytics.log_worker_disconnected(worker_id, worker_address)
                 del session_manager.workers[worker_id]
-                logger.warning(f"Removed disconnected worker {worker_id} (GPU {gpu_id})")
+                logger.warning(f"Removed disconnected worker {worker_id} ({worker_address})")
                 
             if disconnected_workers:
                 # Log updated GPU status
@@ -1017,6 +1086,7 @@ async def periodic_worker_health_check():
 async def startup_event():
     # Start background tasks
     asyncio.create_task(periodic_queue_update())
+    asyncio.create_task(periodic_system_validation())
     asyncio.create_task(periodic_analytics_summary())
     asyncio.create_task(periodic_worker_health_check())
     
