@@ -864,10 +864,59 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Error in system state validation: {e}")
 
+    async def _handle_worker_failure(self, failed_worker_id: str):
+        """Handle sessions when a worker fails - end sessions and put users back in queue"""
+        logger.warning(f"Handling failure of worker {failed_worker_id}")
+        
+        # Find all sessions assigned to this worker
+        failed_sessions = []
+        for session_id, worker_id in list(self.active_sessions.items()):
+            if worker_id == failed_worker_id:
+                failed_sessions.append(session_id)
+        
+        logger.warning(f"Found {len(failed_sessions)} sessions on failed worker {failed_worker_id}")
+        
+        for session_id in failed_sessions:
+            session = self.sessions.get(session_id)
+            if session:
+                logger.info(f"Recovering session {session_id} from failed worker")
+                
+                # Notify user about the worker failure
+                try:
+                    await session.websocket.send_json({
+                        "type": "worker_failure",
+                        "message": "GPU worker failed. Reconnecting you to a healthy worker..."
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to notify session {session_id} about worker failure: {e}")
+                
+                # Remove from active sessions
+                if session_id in self.active_sessions:
+                    del self.active_sessions[session_id]
+                
+                # Reset session state and put back in queue
+                session.status = SessionStatus.QUEUED
+                session.worker_id = None
+                session.queue_start_time = time.time()
+                session.max_session_time = None  # Reset time limits
+                session.session_limit_start_time = None
+                session.session_warning_sent = False
+                session.idle_warning_sent = False
+                
+                # Add back to front of queue (they were already active)
+                if session_id not in self.session_queue:
+                    self.session_queue.insert(0, session_id)
+                    logger.info(f"Added session {session_id} to front of queue for recovery")
+        
+        # Process queue to reassign recovered sessions to healthy workers
+        if failed_sessions:
+            logger.info(f"Processing queue to reassign {len(failed_sessions)} recovered sessions")
+            await self.process_queue()
+
     async def _forward_to_worker(self, worker: WorkerInfo, session_id: str, data: dict):
         """Forward input to worker asynchronously"""
         try:
-            async with aiohttp.ClientSession() as client_session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as client_session:
                 async with client_session.post(
                     f"{worker.endpoint}/process_input",
                     json={
@@ -876,10 +925,15 @@ class SessionManager:
                     }
                 ) as response:
                     if response.status != 200:
-                        logger.error(f"Worker returned status {response.status}")
-                        # Optionally handle worker errors here
+                        logger.error(f"Worker {worker.worker_id} returned status {response.status}")
+        except asyncio.TimeoutError:
+            logger.error(f"Worker {worker.worker_id} timeout - may be unresponsive")
+            # Mark worker as potentially dead for faster detection
+            worker.last_ping = 0  # This will cause it to be removed on next health check
         except Exception as e:
             logger.error(f"Error forwarding to worker {worker.worker_id}: {e}")
+            # Mark worker as potentially dead for faster detection  
+            worker.last_ping = 0
 
 # Global session manager
 session_manager = SessionManager()
@@ -1110,6 +1164,10 @@ async def periodic_worker_health_check():
             
             for worker_id, worker_address in disconnected_workers:
                 analytics.log_worker_disconnected(worker_id, worker_address)
+                
+                # Handle any active sessions on this dead worker
+                await session_manager._handle_worker_failure(worker_id)
+                
                 del session_manager.workers[worker_id]
                 logger.warning(f"Removed disconnected worker {worker_id} ({worker_address})")
                 

@@ -333,6 +333,17 @@
                     console.log(`Queue limit applied, ${data.time_remaining} seconds remaining`);
                     setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
                     startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
+                } else if (data.type === "worker_failure") {
+                    console.log("Worker failure detected, reconnecting...");
+                    showConnectionStatus("🔄 GPU worker failed. Reconnecting to healthy worker...");
+                    // Clear the canvas to show we're reconnecting
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#f0f0f0';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#666';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔄 Reconnecting to healthy GPU...', canvas.width/2, canvas.height/2);
                 }
             };
         }

@@ -168,8 +168,9 @@ while true; do
     CURRENT_WORKERS=$(ps aux | grep -c "python.*worker.py.*--worker-address" || echo "0")
     if [ "$CURRENT_WORKERS" -lt "$NUM_GPUS" ]; then
         echo "⚠️  Some workers died unexpectedly. Expected $NUM_GPUS, found $CURRENT_WORKERS"
-        cleanup
-        exit 1
+        echo "🔄 System will continue operating with reduced capacity"
+        echo "💡 Check worker logs for error details"
+        # Don't exit - keep system running with remaining workers
     fi
     
     sleep 5
