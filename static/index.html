@@ -313,7 +313,7 @@
                     console.log("Session started, clearing queue display");
                     // Stop queue countdown and clear the display
                     stopQueueCountdown();
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    //ctx.clearRect(0, 0, canvas.width, canvas.height);
                 } else if (data.type === "session_warning") {
                     console.log(`Session time warning: ${data.time_remaining} seconds remaining`);
                     setTimeoutMessage(`Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
