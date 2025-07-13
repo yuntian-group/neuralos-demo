@@ -33,7 +33,7 @@ GPU_DETECTION_SUCCESS=$?
 
 # Default values
 NUM_GPUS=$DETECTED_GPUS
-DISPATCHER_PORT=8000
+DISPATCHER_PORT=7860
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [--num-gpus N] [--port PORT]"
             echo "  --num-gpus N    Number of GPU workers to start (default: auto-detected)"
-            echo "  --port PORT     Dispatcher port (default: 8000)"
+            echo "  --port PORT     Dispatcher port (default: 7860)"
             echo ""
             echo "GPU Detection:"
             echo "  Automatically detects available GPUs using nvidia-smi"
@@ -106,6 +106,13 @@ echo "🌐 Dispatcher port: $DISPATCHER_PORT"
 echo "💻 Worker ports: $(seq -s', ' 8001 $((8000 + NUM_GPUS)))"
 echo "📈 Analytics logging: system_analytics_$(date +%Y%m%d_%H%M%S).log"
 echo ""
+
+# Validate that we're not trying to start more workers than GPUs
+if [ "$NUM_GPUS" -gt "$DETECTED_GPUS" ]; then
+    echo "⚠️  Warning: Trying to start $NUM_GPUS workers but only $DETECTED_GPUS GPU(s) detected"
+    echo "   This may cause GPU sharing or errors. Consider using --num-gpus $DETECTED_GPUS"
+    echo ""
+fi
 
 # Check if required files exist
 if [[ ! -f "dispatcher.py" ]]; then
