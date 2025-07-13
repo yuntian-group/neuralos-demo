@@ -755,7 +755,16 @@ class SessionManager:
             # Notify client that activity was detected and warnings are reset
             if warning_reset:
                 try:
-                    await session.websocket.send_json({"type": "activity_reset"})
+                    # Include current session time remaining if session limit is active
+                    message = {"type": "activity_reset"}
+                    if session.max_session_time and session.session_limit_start_time:
+                        elapsed = time.time() - session.session_limit_start_time
+                        remaining = max(0, session.max_session_time - elapsed)
+                        if remaining > 0:
+                            message["session_time_remaining"] = remaining
+                            message["queue_size"] = len(self.session_queue)
+                    
+                    await session.websocket.send_json(message)
                     logger.info(f"Activity reset message sent to session {session_id}")
                 except Exception as e:
                     logger.error(f"Failed to send activity reset to session {session_id}: {e}")

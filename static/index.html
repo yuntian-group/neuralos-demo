@@ -279,6 +279,13 @@
                 } else if (data.type === "activity_reset") {
                     console.log("Server detected user activity, resetting timeout");
                     stopTimeoutCountdown();
+                    
+                    // If there's still a session time limit active, restore that countdown
+                    if (data.session_time_remaining && data.session_time_remaining > 0) {
+                        console.log(`Restoring session countdown: ${data.session_time_remaining} seconds remaining`);
+                        setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.session_time_remaining)}</span> seconds.`);
+                        startTimeoutCountdown(Math.ceil(data.session_time_remaining), true); // true = hide stay connected button
+                    }
                 } else if (data.type === "queue_update") {
                     console.log(`Queue update: Position ${data.position}/${data.total_waiting}, wait: ${data.maximum_wait_seconds.toFixed(1)} seconds`);
                     const waitSeconds = Math.ceil(data.maximum_wait_seconds);
