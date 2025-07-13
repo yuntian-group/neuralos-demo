@@ -32,27 +32,74 @@ class SystemAnalytics:
         self.users_waited_in_queue = 0  # Users who had to wait
         self.gpu_utilization_samples = deque(maxlen=100)  # GPU utilization over time
         self.queue_size_samples = deque(maxlen=100)  # Queue size over time
+        
+        # File handles for different analytics
         self.log_file = None
-        self._init_log_file()
+        self.gpu_metrics_file = None
+        self.connection_events_file = None
+        self.queue_metrics_file = None
+        self.ip_stats_file = None
+        self._init_log_files()
     
-    def _init_log_file(self):
-        """Initialize the system log file"""
+    def _init_log_files(self):
+        """Initialize all analytics log files"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"system_analytics_{timestamp}.log"
-        self.log_file = log_filename
+        
+        # Main human-readable log
+        self.log_file = f"system_analytics_{timestamp}.log"
         self._write_log("="*80)
         self._write_log("NEURAL OS MULTI-GPU SYSTEM ANALYTICS")
         self._write_log("="*80)
         self._write_log(f"System started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self._write_log("")
+        
+        # Structured data files for analysis
+        self.gpu_metrics_file = f"gpu_metrics_{timestamp}.jsonl"
+        self.connection_events_file = f"connection_events_{timestamp}.jsonl"
+        self.queue_metrics_file = f"queue_metrics_{timestamp}.jsonl"
+        self.ip_stats_file = f"ip_stats_{timestamp}.jsonl"
+        
+        # Initialize with headers/metadata
+        self._write_json_log(self.gpu_metrics_file, {
+            "type": "metadata",
+            "timestamp": time.time(),
+            "description": "GPU utilization metrics",
+            "fields": ["timestamp", "total_gpus", "active_gpus", "available_gpus", "utilization_percent"]
+        })
+        
+        self._write_json_log(self.connection_events_file, {
+            "type": "metadata", 
+            "timestamp": time.time(),
+            "description": "Connection lifecycle events",
+            "fields": ["timestamp", "event_type", "client_id", "ip_address", "duration", "interactions", "reason"]
+        })
+        
+        self._write_json_log(self.queue_metrics_file, {
+            "type": "metadata",
+            "timestamp": time.time(), 
+            "description": "Queue performance metrics",
+            "fields": ["timestamp", "queue_size", "estimated_wait", "bypass_rate", "avg_wait_time"]
+        })
+        
+        self._write_json_log(self.ip_stats_file, {
+            "type": "metadata",
+            "timestamp": time.time(),
+            "description": "IP address usage statistics", 
+            "fields": ["timestamp", "ip_address", "connection_count", "total_unique_ips"]
+        })
     
     def _write_log(self, message):
-        """Write message to log file and console"""
+        """Write message to main log file and console"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         log_message = f"[{timestamp}] {message}"
         print(log_message)
         with open(self.log_file, "a") as f:
             f.write(log_message + "\n")
+    
+    def _write_json_log(self, filename, data):
+        """Write structured data to JSON lines file"""
+        with open(filename, "a") as f:
+            f.write(json.dumps(data) + "\n")
     
     def log_new_connection(self, client_id: str, ip: str):
         """Log new connection"""
@@ -61,8 +108,30 @@ class SystemAnalytics:
         self.ip_addresses[ip] += 1
         
         unique_ips = len(self.ip_addresses)
+        timestamp = time.time()
+        
+        # Human-readable log
         self._write_log(f"🔗 NEW CONNECTION: {client_id} from {ip}")
         self._write_log(f"   📊 Total connections: {self.total_connections} | Active: {self.active_connections} | Unique IPs: {unique_ips}")
+        
+        # Structured data logs
+        self._write_json_log(self.connection_events_file, {
+            "type": "connection_open",
+            "timestamp": timestamp,
+            "client_id": client_id,
+            "ip_address": ip,
+            "total_connections": self.total_connections,
+            "active_connections": self.active_connections,
+            "unique_ips": unique_ips
+        })
+        
+        self._write_json_log(self.ip_stats_file, {
+            "type": "ip_update",
+            "timestamp": timestamp,
+            "ip_address": ip,
+            "connection_count": self.ip_addresses[ip],
+            "total_unique_ips": unique_ips
+        })
     
     def log_connection_closed(self, client_id: str, duration: float, interactions: int, reason: str = "normal"):
         """Log connection closed"""
@@ -71,17 +140,44 @@ class SystemAnalytics:
         self.session_durations.append(duration)
         
         avg_duration = sum(self.session_durations) / len(self.session_durations) if self.session_durations else 0
+        timestamp = time.time()
         
+        # Human-readable log
         self._write_log(f"🚪 CONNECTION CLOSED: {client_id}")
         self._write_log(f"   ⏱️  Duration: {duration:.1f}s | Interactions: {interactions} | Reason: {reason}")
         self._write_log(f"   📊 Active connections: {self.active_connections} | Avg session duration: {avg_duration:.1f}s")
+        
+        # Structured data log
+        self._write_json_log(self.connection_events_file, {
+            "type": "connection_close",
+            "timestamp": timestamp,
+            "client_id": client_id,
+            "duration": duration,
+            "interactions": interactions,
+            "reason": reason,
+            "active_connections": self.active_connections,
+            "avg_session_duration": avg_duration
+        })
     
     def log_queue_bypass(self, client_id: str):
         """Log when user bypasses queue (gets GPU immediately)"""
         self.users_bypassed_queue += 1
         bypass_rate = (self.users_bypassed_queue / self.total_connections) * 100 if self.total_connections > 0 else 0
+        timestamp = time.time()
+        
+        # Human-readable log
         self._write_log(f"⚡ QUEUE BYPASS: {client_id} got GPU immediately")
         self._write_log(f"   📊 Bypass rate: {bypass_rate:.1f}% ({self.users_bypassed_queue}/{self.total_connections})")
+        
+        # Structured data log
+        self._write_json_log(self.queue_metrics_file, {
+            "type": "queue_bypass",
+            "timestamp": timestamp,
+            "client_id": client_id,
+            "bypass_rate": bypass_rate,
+            "users_bypassed": self.users_bypassed_queue,
+            "total_connections": self.total_connections
+        })
     
     def log_queue_wait(self, client_id: str, wait_time: float, queue_position: int):
         """Log when user had to wait in queue"""
@@ -90,9 +186,23 @@ class SystemAnalytics:
         
         avg_wait = sum(self.waiting_times) / len(self.waiting_times) if self.waiting_times else 0
         wait_rate = (self.users_waited_in_queue / self.total_connections) * 100 if self.total_connections > 0 else 0
+        timestamp = time.time()
         
+        # Human-readable log
         self._write_log(f"⏳ QUEUE WAIT: {client_id} waited {wait_time:.1f}s (was #{queue_position})")
         self._write_log(f"   📊 Wait rate: {wait_rate:.1f}% | Avg wait time: {avg_wait:.1f}s")
+        
+        # Structured data log
+        self._write_json_log(self.queue_metrics_file, {
+            "type": "queue_wait",
+            "timestamp": timestamp,
+            "client_id": client_id,
+            "wait_time": wait_time,
+            "queue_position": queue_position,
+            "wait_rate": wait_rate,
+            "avg_wait_time": avg_wait,
+            "users_waited": self.users_waited_in_queue
+        })
     
     def log_gpu_status(self, total_gpus: int, active_gpus: int, available_gpus: int):
         """Log GPU utilization"""
@@ -100,9 +210,22 @@ class SystemAnalytics:
         self.gpu_utilization_samples.append(utilization)
         
         avg_utilization = sum(self.gpu_utilization_samples) / len(self.gpu_utilization_samples) if self.gpu_utilization_samples else 0
+        timestamp = time.time()
         
+        # Human-readable log
         self._write_log(f"🖥️  GPU STATUS: {active_gpus}/{total_gpus} in use ({utilization:.1f}% utilization)")
         self._write_log(f"   📊 Available: {available_gpus} | Avg utilization: {avg_utilization:.1f}%")
+        
+        # Structured data log
+        self._write_json_log(self.gpu_metrics_file, {
+            "type": "gpu_status",
+            "timestamp": timestamp,
+            "total_gpus": total_gpus,
+            "active_gpus": active_gpus,
+            "available_gpus": available_gpus,
+            "utilization_percent": utilization,
+            "avg_utilization_percent": avg_utilization
+        })
     
     def log_worker_registered(self, worker_id: str, gpu_id: int, endpoint: str):
         """Log when a worker registers"""
@@ -122,7 +245,18 @@ class SystemAnalytics:
         self.queue_size_samples.append(queue_size)
         
         avg_queue_size = sum(self.queue_size_samples) / len(self.queue_size_samples) if self.queue_size_samples else 0
+        timestamp = time.time()
         
+        # Always log to structured data for analysis
+        self._write_json_log(self.queue_metrics_file, {
+            "type": "queue_status",
+            "timestamp": timestamp,
+            "queue_size": queue_size,
+            "estimated_wait": estimated_wait,
+            "avg_queue_size": avg_queue_size
+        })
+        
+        # Only log to human-readable if there's a queue
         if queue_size > 0:
             self._write_log(f"📝 QUEUE STATUS: {queue_size} users waiting | Est. wait: {estimated_wait:.1f}s")
             self._write_log(f"   📊 Avg queue size: {avg_queue_size:.1f}")
