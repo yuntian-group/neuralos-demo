@@ -61,6 +61,7 @@ echo "========================================"
 echo "📊 Number of GPUs: $NUM_GPUS"
 echo "🌐 Dispatcher port: $DISPATCHER_PORT" 
 echo "💻 Worker ports: $(seq -s', ' 8001 $((8000 + NUM_GPUS)))"
+echo "📈 Analytics logging: system_analytics_$(date +%Y%m%d_%H%M%S).log"
 echo ""
 
 # Check if required files exist
@@ -130,12 +131,14 @@ for ((i=0; i<NUM_GPUS; i++)); do
 done
 echo ""
 echo "📋 Log files:"
+echo "   System analytics: system_analytics_*.log (real-time monitoring)"
 echo "   Dispatcher: dispatcher.log"
 echo "   Workers summary: workers.log"
 for ((i=0; i<NUM_GPUS; i++)); do
     echo "   GPU $i worker: worker_gpu_$i.log"
 done
 echo ""
+echo "💡 Monitor system in real-time: tail -f system_analytics_*.log"
 echo "Press Ctrl+C to stop the system"
 echo "================================"
 

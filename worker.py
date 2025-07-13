@@ -293,9 +293,17 @@ class GPUWorker:
         
         return sample_latent, sample_img, hidden_states, timing
 
-    def initialize_session(self, session_id: str):
+    def initialize_session(self, session_id: str, client_id: str = None):
         """Initialize a new session"""
         self.current_session = session_id
+        # Use client_id from dispatcher if provided, otherwise create one
+        if client_id:
+            log_session_id = client_id
+        else:
+            # Fallback: create a time-prefixed session identifier for logging
+            session_start_time = int(time.time())
+            log_session_id = f"{session_start_time}_{session_id}"
+        
         self.session_data[session_id] = {
             'previous_frame': self.padding_image,
             'hidden_states': None,
@@ -306,9 +314,10 @@ class GPUWorker:
                 'sampling_steps': self.NUM_SAMPLING_STEPS
             },
             'input_queue': asyncio.Queue(),
-            'is_processing': False
+            'is_processing': False,
+            'log_session_id': log_session_id  # Store the time-prefixed ID for logging
         }
-        logger.info(f"Initialized session {session_id}")
+        logger.info(f"Initialized session {session_id} with log ID {log_session_id}")
         
         # Start processing task for this session
         asyncio.create_task(self._process_session_queue(session_id))
@@ -316,8 +325,12 @@ class GPUWorker:
     def end_session(self, session_id: str):
         """End a session and clean up"""
         if session_id in self.session_data:
-            # Clear any remaining items in the queue
+            # Log session end using the stored log_session_id
             session = self.session_data[session_id]
+            log_session_id = session.get('log_session_id', session_id)  # Fallback to session_id if not found
+            log_interaction(log_session_id, {}, is_end_of_session=True)
+            
+            # Clear any remaining items in the queue
             while not session['input_queue'].empty():
                 try:
                     session['input_queue'].get_nowait()
@@ -391,7 +404,9 @@ class GPUWorker:
                 is_interesting = (current_input.get("is_left_click") or 
                                   current_input.get("is_right_click") or 
                                   (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or 
-                                  (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0))
+                                  (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0) or
+                                  current_input.get("wheel_delta_x", 0) != 0 or
+                                  current_input.get("wheel_delta_y", 0) != 0)
                 
                 # Process immediately if interesting
                 if is_interesting:
@@ -416,13 +431,17 @@ class GPUWorker:
     async def process_input(self, session_id: str, data: dict) -> dict:
         """Process input for a session - adds to queue or handles control messages"""
         if session_id not in self.session_data:
-            self.initialize_session(session_id)
+            self.initialize_session(session_id)  # Fallback initialization without client_id
         
         session = self.session_data[session_id]
         
         # Handle control messages immediately (don't queue these)
         if data.get("type") == "reset":
             logger.info(f"Received reset command for session {session_id}")
+            # Log the reset action using the stored log_session_id
+            log_session_id = session.get('log_session_id', session_id)  # Fallback to session_id if not found
+            log_interaction(log_session_id, data, is_reset=True)
+            
             # Clear the queue
             while not session['input_queue'].empty():
                 try:
@@ -484,6 +503,8 @@ class GPUWorker:
             is_right_click = data.get("is_right_click", False)
             keys_down_list = data.get("keys_down", [])
             keys_up_list = data.get("keys_up", [])
+            wheel_delta_x = data.get("wheel_delta_x", 0)
+            wheel_delta_y = data.get("wheel_delta_y", 0)
             
             # Update keys_down set
             for key in keys_down_list:
@@ -518,8 +539,13 @@ class GPUWorker:
                 session['frame_num']
             )
             
+            # Log the input data being processed
+            logger.info(f"Processing frame {session['frame_num']} for session {session_id}: "
+                       f"pos=({x},{y}), clicks=(L:{is_left_click},R:{is_right_click}), "
+                       f"keys_down={keys_down_list}, keys_up={keys_up_list}, "
+                       f"wheel=({wheel_delta_x},{wheel_delta_y})")
+            
             # Process frame
-            logger.info(f"Processing frame {session['frame_num']} for session {session_id}")
             sample_latent, sample_img, hidden_states, timing_info = await self.process_frame(
                 inputs,
                 use_rnn=session['client_settings']['use_rnn'],
@@ -538,6 +564,10 @@ class GPUWorker:
             
             # Log timing
             logger.info(f"Frame {session['frame_num']} processed in {timing_info['total']:.4f}s (FPS: {1.0/timing_info['total']:.2f})")
+            
+            # Log the interaction using the stored log_session_id
+            log_session_id = session.get('log_session_id', session_id)  # Fallback to session_id if not found
+            log_interaction(log_session_id, data, generated_frame=sample_img)
             
             # Send result back to dispatcher
             await self._send_result_to_dispatcher(session_id, {"image": img_str})
@@ -566,6 +596,55 @@ app = FastAPI()
 # Global worker instance
 worker: Optional[GPUWorker] = None
 
+def log_interaction(log_session_id, data, generated_frame=None, is_end_of_session=False, is_reset=False):
+    """Log user interaction and optionally the generated frame."""
+    timestamp = time.time()
+    
+    # Create directory structure if it doesn't exist
+    os.makedirs("interaction_logs", exist_ok=True)
+    
+    # Structure the log entry
+    log_entry = {
+        "timestamp": timestamp,
+        "session_id": log_session_id,  # Use the time-prefixed session ID
+        "is_eos": is_end_of_session,
+        "is_reset": is_reset
+    }
+    
+    # Include type if present (for reset, etc.)
+    if data.get("type"):
+        log_entry["type"] = data.get("type")
+    
+    # Only include input data if this isn't just a control message
+    if not is_end_of_session and not is_reset:
+        log_entry["inputs"] = {
+            "x": data.get("x"),
+            "y": data.get("y"),
+            "is_left_click": data.get("is_left_click"),
+            "is_right_click": data.get("is_right_click"),
+            "keys_down": data.get("keys_down", []),
+            "keys_up": data.get("keys_up", []),
+            "wheel_delta_x": data.get("wheel_delta_x", 0),
+            "wheel_delta_y": data.get("wheel_delta_y", 0),
+            "is_auto_input": data.get("is_auto_input", False)
+        }
+    else:
+        # For EOS/reset records, just include minimal info
+        log_entry["inputs"] = None
+    
+    # Use the time-prefixed session ID for the filename (already includes timestamp)
+    session_file = f"interaction_logs/session_{log_session_id}.jsonl"
+    with open(session_file, "a") as f:
+        f.write(json.dumps(log_entry) + "\n")
+    
+    # Optionally save the frame if provided
+    if generated_frame is not None and not is_end_of_session and not is_reset:
+        frame_dir = f"interaction_logs/frames_{log_session_id}"
+        os.makedirs(frame_dir, exist_ok=True)
+        frame_file = f"{frame_dir}/{timestamp:.6f}.png"
+        # Save the frame as PNG
+        Image.fromarray(generated_frame).save(frame_file)
+
 @app.post("/process_input")
 async def process_input_endpoint(request: dict):
     """Process input from dispatcher"""
@@ -581,13 +660,29 @@ async def process_input_endpoint(request: dict):
     result = await worker.process_input(session_id, data)
     return result
 
-@app.post("/end_session")
-async def end_session_endpoint(request: dict):
-    """End a session"""
+@app.post("/init_session")
+async def init_session_endpoint(request: dict):
+    """Initialize session from dispatcher with client_id"""
     if not worker:
         raise HTTPException(status_code=500, detail="Worker not initialized")
     
     session_id = request.get("session_id")
+    client_id = request.get("client_id")
+    
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Missing session_id")
+    
+    worker.initialize_session(session_id, client_id)
+    return {"status": "session_initialized"}
+
+@app.post("/end_session")
+async def end_session_endpoint(request: dict):
+    """End session from dispatcher"""
+    if not worker:
+        raise HTTPException(status_code=500, detail="Worker not initialized")
+    
+    session_id = request.get("session_id")
+    
     if not session_id:
         raise HTTPException(status_code=400, detail="Missing session_id")
     

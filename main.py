@@ -526,7 +526,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     if not user_has_interacted:
                         user_has_interacted = True
                         print(f"[{time.perf_counter():.3f}] User has started interacting with canvas for client {client_id}")
-                print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}, time_since_activity: {time.perf_counter() - last_user_activity_time:.3f}')
+                wheel_delta_x = data.get("wheel_delta_x", 0)
+                wheel_delta_y = data.get("wheel_delta_y", 0)
+                print(f'[{time.perf_counter():.3f}] Processing: x: {x}, y: {y}, is_left_click: {is_left_click}, is_right_click: {is_right_click}, keys_down_list: {keys_down_list}, keys_up_list: {keys_up_list}, wheel: ({wheel_delta_x},{wheel_delta_y}), time_since_activity: {time.perf_counter() - last_user_activity_time:.3f}')
                 
                 # Update the set based on the received data
                 for key in keys_down_list:
@@ -649,7 +651,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     is_interesting = (current_input.get("is_left_click") or 
                                       current_input.get("is_right_click") or 
                                       (current_input.get("keys_down") and len(current_input.get("keys_down")) > 0) or 
-                                      (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0))
+                                      (current_input.get("keys_up") and len(current_input.get("keys_up")) > 0) or
+                                      current_input.get("wheel_delta_x", 0) != 0 or
+                                      current_input.get("wheel_delta_y", 0) != 0)
                     
                     # Process immediately if interesting
                     if is_interesting:
@@ -802,6 +806,8 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
             "is_right_click": data.get("is_right_click"),
             "keys_down": data.get("keys_down", []),
             "keys_up": data.get("keys_up", []),
+            "wheel_delta_x": data.get("wheel_delta_x", 0),
+            "wheel_delta_y": data.get("wheel_delta_y", 0),
             "is_auto_input": data.get("is_auto_input", False)
         }
     else:
@@ -809,6 +815,8 @@ def log_interaction(client_id, data, generated_frame=None, is_end_of_session=Fal
         log_entry["inputs"] = None
     
     # Save to a file (one file per session)
+    if not os.path.exists("interaction_logs"):
+        os.makedirs("interaction_logs", exist_ok=True)
     session_file = f"interaction_logs/session_{client_id}.jsonl"
     with open(session_file, "a") as f:
         f.write(json.dumps(log_entry) + "\n")

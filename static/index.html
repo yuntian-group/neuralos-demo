@@ -414,6 +414,8 @@
                             "is_right_click": false,
                             "keys_down": [],
                             "keys_up": [],
+                            "wheel_delta_x": 0,
+                            "wheel_delta_y": 0,
                             "is_auto_input": true  // Flag to identify auto-generated inputs
                         }));
                         lastAutoInputTime = currentTime;
@@ -531,7 +533,9 @@
                         "is_left_click": false,
                         "is_right_click": false,
                         "keys_down": [],
-                        "keys_up": []
+                        "keys_up": [],
+                        "wheel_delta_x": 0,
+                        "wheel_delta_y": 0
                     }));
                     updateLastUserInputTime(); // Update for auto-input mechanism
                 } catch (error) {
@@ -541,9 +545,9 @@
             stopTimeoutCountdown();
         }
 
-        function sendInputState(x, y, isLeftClick = false, isRightClick = false, keysDownArr = [], keysUpArr = []) {
+        function sendInputState(x, y, isLeftClick = false, isRightClick = false, keysDownArr = [], keysUpArr = [], wheelDeltaX = 0, wheelDeltaY = 0) {
             const currentTime = Date.now();
-            if (isConnected && socket.readyState === WebSocket.OPEN && (isLeftClick || isRightClick || keysDownArr.length > 0 || keysUpArr.length > 0 || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
+            if (isConnected && socket.readyState === WebSocket.OPEN && (isLeftClick || isRightClick || keysDownArr.length > 0 || keysUpArr.length > 0 || wheelDeltaX !== 0 || wheelDeltaY !== 0 || !lastSentPosition || currentTime - lastSentTime >= SEND_INTERVAL)) {
                 try {
                     socket.send(JSON.stringify({
                         "x": x,
@@ -552,6 +556,8 @@
                         "is_right_click": isRightClick,
                         "keys_down": keysDownArr,
                         "keys_up": keysUpArr,
+                        "wheel_delta_x": wheelDeltaX,
+                        "wheel_delta_y": wheelDeltaY,
                     }));
                     lastSentPosition = { x, y };
                     lastSentTime = currentTime;
@@ -636,6 +642,27 @@
             let y = event.clientY - rect.top;
 
             sendInputState(x, y, false, true);
+        });
+
+        // Handle mouse wheel events
+        canvas.addEventListener("wheel", function (event) {
+            event.preventDefault(); // Prevent page scrolling
+            if (!isConnected || isProcessing) return;
+            
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            
+            // Normalize wheel delta values (different browsers handle this differently)
+            let deltaX = event.deltaX;
+            let deltaY = event.deltaY;
+            
+            // Clamp values to reasonable range
+            //deltaX = Math.max(-10, Math.min(10, deltaX));
+            //deltaY = Math.max(-10, Math.min(10, deltaY));
+            
+            console.log(`Wheel event: deltaX=${deltaX}, deltaY=${deltaY} at (${x}, ${y})`);
+            sendInputState(x, y, false, false, [], [], deltaX, deltaY);
         });
 
         // Track keyboard events

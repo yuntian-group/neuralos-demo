@@ -11,10 +11,156 @@ from enum import Enum
 import uuid
 import aiohttp
 import logging
+from collections import defaultdict, deque
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Analytics and monitoring
+class SystemAnalytics:
+    def __init__(self):
+        self.start_time = time.time()
+        self.total_connections = 0
+        self.active_connections = 0
+        self.total_interactions = 0
+        self.ip_addresses = defaultdict(int)  # IP -> connection count
+        self.session_durations = deque(maxlen=100)  # Last 100 session durations
+        self.waiting_times = deque(maxlen=100)  # Last 100 waiting times
+        self.users_bypassed_queue = 0  # Users who got GPU immediately
+        self.users_waited_in_queue = 0  # Users who had to wait
+        self.gpu_utilization_samples = deque(maxlen=100)  # GPU utilization over time
+        self.queue_size_samples = deque(maxlen=100)  # Queue size over time
+        self.log_file = None
+        self._init_log_file()
+    
+    def _init_log_file(self):
+        """Initialize the system log file"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = f"system_analytics_{timestamp}.log"
+        self.log_file = log_filename
+        self._write_log("="*80)
+        self._write_log("NEURAL OS MULTI-GPU SYSTEM ANALYTICS")
+        self._write_log("="*80)
+        self._write_log(f"System started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self._write_log("")
+    
+    def _write_log(self, message):
+        """Write message to log file and console"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_message = f"[{timestamp}] {message}"
+        print(log_message)
+        with open(self.log_file, "a") as f:
+            f.write(log_message + "\n")
+    
+    def log_new_connection(self, client_id: str, ip: str):
+        """Log new connection"""
+        self.total_connections += 1
+        self.active_connections += 1
+        self.ip_addresses[ip] += 1
+        
+        unique_ips = len(self.ip_addresses)
+        self._write_log(f"🔗 NEW CONNECTION: {client_id} from {ip}")
+        self._write_log(f"   📊 Total connections: {self.total_connections} | Active: {self.active_connections} | Unique IPs: {unique_ips}")
+    
+    def log_connection_closed(self, client_id: str, duration: float, interactions: int, reason: str = "normal"):
+        """Log connection closed"""
+        self.active_connections -= 1
+        self.total_interactions += interactions
+        self.session_durations.append(duration)
+        
+        avg_duration = sum(self.session_durations) / len(self.session_durations) if self.session_durations else 0
+        
+        self._write_log(f"🚪 CONNECTION CLOSED: {client_id}")
+        self._write_log(f"   ⏱️  Duration: {duration:.1f}s | Interactions: {interactions} | Reason: {reason}")
+        self._write_log(f"   📊 Active connections: {self.active_connections} | Avg session duration: {avg_duration:.1f}s")
+    
+    def log_queue_bypass(self, client_id: str):
+        """Log when user bypasses queue (gets GPU immediately)"""
+        self.users_bypassed_queue += 1
+        bypass_rate = (self.users_bypassed_queue / self.total_connections) * 100 if self.total_connections > 0 else 0
+        self._write_log(f"⚡ QUEUE BYPASS: {client_id} got GPU immediately")
+        self._write_log(f"   📊 Bypass rate: {bypass_rate:.1f}% ({self.users_bypassed_queue}/{self.total_connections})")
+    
+    def log_queue_wait(self, client_id: str, wait_time: float, queue_position: int):
+        """Log when user had to wait in queue"""
+        self.users_waited_in_queue += 1
+        self.waiting_times.append(wait_time)
+        
+        avg_wait = sum(self.waiting_times) / len(self.waiting_times) if self.waiting_times else 0
+        wait_rate = (self.users_waited_in_queue / self.total_connections) * 100 if self.total_connections > 0 else 0
+        
+        self._write_log(f"⏳ QUEUE WAIT: {client_id} waited {wait_time:.1f}s (was #{queue_position})")
+        self._write_log(f"   📊 Wait rate: {wait_rate:.1f}% | Avg wait time: {avg_wait:.1f}s")
+    
+    def log_gpu_status(self, total_gpus: int, active_gpus: int, available_gpus: int):
+        """Log GPU utilization"""
+        utilization = (active_gpus / total_gpus) * 100 if total_gpus > 0 else 0
+        self.gpu_utilization_samples.append(utilization)
+        
+        avg_utilization = sum(self.gpu_utilization_samples) / len(self.gpu_utilization_samples) if self.gpu_utilization_samples else 0
+        
+        self._write_log(f"🖥️  GPU STATUS: {active_gpus}/{total_gpus} in use ({utilization:.1f}% utilization)")
+        self._write_log(f"   📊 Available: {available_gpus} | Avg utilization: {avg_utilization:.1f}%")
+    
+    def log_worker_registered(self, worker_id: str, gpu_id: int, endpoint: str):
+        """Log when a worker registers"""
+        self._write_log(f"⚙️  WORKER REGISTERED: {worker_id} (GPU {gpu_id}) at {endpoint}")
+    
+    def log_worker_disconnected(self, worker_id: str, gpu_id: int):
+        """Log when a worker disconnects"""
+        self._write_log(f"⚙️  WORKER DISCONNECTED: {worker_id} (GPU {gpu_id})")
+    
+    def log_no_workers_available(self, queue_size: int):
+        """Log critical situation when no workers are available"""
+        self._write_log(f"⚠️  CRITICAL: No GPU workers available! {queue_size} users waiting")
+        self._write_log("   Please check worker processes and GPU availability")
+    
+    def log_queue_status(self, queue_size: int, estimated_wait: float):
+        """Log queue status"""
+        self.queue_size_samples.append(queue_size)
+        
+        avg_queue_size = sum(self.queue_size_samples) / len(self.queue_size_samples) if self.queue_size_samples else 0
+        
+        if queue_size > 0:
+            self._write_log(f"📝 QUEUE STATUS: {queue_size} users waiting | Est. wait: {estimated_wait:.1f}s")
+            self._write_log(f"   📊 Avg queue size: {avg_queue_size:.1f}")
+    
+    def log_periodic_summary(self):
+        """Log periodic system summary"""
+        uptime = time.time() - self.start_time
+        uptime_hours = uptime / 3600
+        
+        unique_ips = len(self.ip_addresses)
+        avg_duration = sum(self.session_durations) / len(self.session_durations) if self.session_durations else 0
+        avg_wait = sum(self.waiting_times) / len(self.waiting_times) if self.waiting_times else 0
+        avg_utilization = sum(self.gpu_utilization_samples) / len(self.gpu_utilization_samples) if self.gpu_utilization_samples else 0
+        avg_queue_size = sum(self.queue_size_samples) / len(self.queue_size_samples) if self.queue_size_samples else 0
+        
+        bypass_rate = (self.users_bypassed_queue / self.total_connections) * 100 if self.total_connections > 0 else 0
+        
+        self._write_log("")
+        self._write_log("="*60)
+        self._write_log("📊 SYSTEM SUMMARY")
+        self._write_log("="*60)
+        self._write_log(f"⏱️  Uptime: {uptime_hours:.1f} hours")
+        self._write_log(f"🔗 Connections: {self.total_connections} total | {self.active_connections} active | {unique_ips} unique IPs")
+        self._write_log(f"💬 Total interactions: {self.total_interactions}")
+        self._write_log(f"⚡ Queue bypass rate: {bypass_rate:.1f}% ({self.users_bypassed_queue}/{self.total_connections})")
+        self._write_log(f"⏳ Avg waiting time: {avg_wait:.1f}s")
+        self._write_log(f"📝 Avg queue size: {avg_queue_size:.1f}")
+        self._write_log(f"🖥️  Avg GPU utilization: {avg_utilization:.1f}%")
+        self._write_log(f"⏱️  Avg session duration: {avg_duration:.1f}s")
+        self._write_log("")
+        self._write_log("🌍 TOP IP ADDRESSES:")
+        for ip, count in sorted(self.ip_addresses.items(), key=lambda x: x[1], reverse=True)[:10]:
+            self._write_log(f"   {ip}: {count} connections")
+        self._write_log("="*60)
+        self._write_log("")
+
+# Initialize analytics
+analytics = SystemAnalytics()
 
 class SessionStatus(Enum):
     QUEUED = "queued"
@@ -33,6 +179,9 @@ class UserSession:
     last_activity: Optional[float] = None
     max_session_time: Optional[float] = None
     user_has_interacted: bool = False
+    ip_address: Optional[str] = None
+    interaction_count: int = 0
+    queue_start_time: Optional[float] = None
 
 @dataclass
 class WorkerInfo:
@@ -67,6 +216,15 @@ class SessionManager:
             last_ping=time.time()
         )
         logger.info(f"Registered worker {worker_id} on GPU {gpu_id} at {endpoint}")
+        
+        # Log worker registration
+        analytics.log_worker_registered(worker_id, gpu_id, endpoint)
+        
+        # Log GPU status
+        total_gpus = len(self.workers)
+        active_gpus = len([w for w in self.workers.values() if not w.is_available])
+        available_gpus = total_gpus - active_gpus
+        analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
 
     async def get_available_worker(self) -> Optional[WorkerInfo]:
         """Get an available worker"""
@@ -80,6 +238,7 @@ class SessionManager:
         self.sessions[session.session_id] = session
         self.session_queue.append(session.session_id)
         session.status = SessionStatus.QUEUED
+        session.queue_start_time = time.time()
         logger.info(f"Added session {session.session_id} to queue. Queue size: {len(self.session_queue)}")
 
     async def process_queue(self):
@@ -94,8 +253,15 @@ class SessionManager:
                 
             worker = await self.get_available_worker()
             if not worker:
+                # Log critical situation if no workers are available
+                if len(self.workers) == 0:
+                    analytics.log_no_workers_available(len(self.session_queue))
                 break  # No available workers
                 
+            # Calculate wait time
+            wait_time = time.time() - session.queue_start_time if session.queue_start_time else 0
+            queue_position = self.session_queue.index(session_id) + 1
+            
             # Assign session to worker
             self.session_queue.pop(0)
             session.status = SessionStatus.ACTIVE
@@ -111,6 +277,28 @@ class SessionManager:
             self.active_sessions[session_id] = worker.worker_id
             
             logger.info(f"Assigned session {session_id} to worker {worker.worker_id}")
+            
+            # Log analytics
+            if wait_time > 0:
+                analytics.log_queue_wait(session.client_id, wait_time, queue_position)
+            else:
+                analytics.log_queue_bypass(session.client_id)
+            
+            # Log GPU status
+            total_gpus = len(self.workers)
+            active_gpus = len([w for w in self.workers.values() if not w.is_available])
+            available_gpus = total_gpus - active_gpus
+            analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
+            
+            # Initialize session on worker with client_id for logging
+            try:
+                async with aiohttp.ClientSession() as client_session:
+                    await client_session.post(f"{worker.endpoint}/init_session", json={
+                        "session_id": session_id,
+                        "client_id": session.client_id
+                    })
+            except Exception as e:
+                logger.error(f"Failed to initialize session on worker {worker.worker_id}: {e}")
             
             # Notify user that their session is starting
             await self.notify_session_start(session)
@@ -199,11 +387,24 @@ class SessionManager:
             
         session.status = status
         
+        # Calculate session duration
+        duration = time.time() - session.created_at
+        
+        # Log analytics
+        reason = "timeout" if status == SessionStatus.TIMEOUT else "normal"
+        analytics.log_connection_closed(session.client_id, duration, session.interaction_count, reason)
+        
         # Free up the worker
         if session.worker_id and session.worker_id in self.workers:
             worker = self.workers[session.worker_id]
             worker.is_available = True
             worker.current_session = None
+            
+            # Log GPU status
+            total_gpus = len(self.workers)
+            active_gpus = len([w for w in self.workers.values() if not w.is_available])
+            available_gpus = total_gpus - active_gpus
+            analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
             
             # Notify worker to clean up
             try:
@@ -241,6 +442,11 @@ class SessionManager:
                     })
                 except Exception as e:
                     logger.error(f"Failed to send queue update to session {session_id}: {e}")
+        
+        # Log queue status if there's a queue
+        if self.session_queue:
+            estimated_wait = self._calculate_dynamic_wait_time(1)
+            analytics.log_queue_status(len(self.session_queue), estimated_wait)
 
     def _calculate_dynamic_wait_time(self, position_in_queue: int) -> float:
         """Calculate dynamic estimated wait time based on current session progress"""
@@ -308,6 +514,7 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if session:
             session.last_activity = time.time()
+            session.interaction_count += 1
             if not session.user_has_interacted:
                 session.user_has_interacted = True
                 logger.info(f"User started interacting in session {session_id}")
@@ -334,6 +541,9 @@ session_manager = SessionManager()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Global connection counter like in main.py
+connection_counter = 0
 
 @app.get("/")
 async def get():
@@ -383,21 +593,39 @@ async def worker_result(result_data: dict):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global connection_counter
     await websocket.accept()
     
-    # Create session
+    # Extract client IP address
+    client_ip = "unknown"
+    if websocket.client and hasattr(websocket.client, 'host'):
+        client_ip = websocket.client.host
+    elif hasattr(websocket, 'headers'):
+        # Try to get real IP from headers (for proxy setups)
+        client_ip = websocket.headers.get('x-forwarded-for', 
+                     websocket.headers.get('x-real-ip', 
+                     websocket.headers.get('cf-connecting-ip', 'unknown')))
+        if ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+    
+    # Create session with connection counter like in main.py
+    connection_counter += 1
     session_id = str(uuid.uuid4())
-    client_id = f"{int(time.time())}_{session_id[:8]}"
+    client_id = f"{int(time.time())}_{connection_counter}"
     
     session = UserSession(
         session_id=session_id,
         client_id=client_id,
         websocket=websocket,
         created_at=time.time(),
-        status=SessionStatus.QUEUED
+        status=SessionStatus.QUEUED,
+        ip_address=client_ip
     )
     
-    logger.info(f"New WebSocket connection: {client_id}")
+    logger.info(f"New WebSocket connection: {client_id} from {client_ip}")
+    
+    # Log new connection analytics
+    analytics.log_new_connection(client_id, client_ip)
     
     try:
         # Add to queue
@@ -492,10 +720,60 @@ async def periodic_queue_update():
         except Exception as e:
             logger.error(f"Error in periodic queue update: {e}")
 
+# Background task to periodically log analytics summary
+async def periodic_analytics_summary():
+    while True:
+        try:
+            await asyncio.sleep(300)  # Log summary every 5 minutes
+            analytics.log_periodic_summary()
+        except Exception as e:
+            logger.error(f"Error in periodic analytics summary: {e}")
+
+# Background task to check worker health
+async def periodic_worker_health_check():
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+            current_time = time.time()
+            disconnected_workers = []
+            
+            for worker_id, worker in list(session_manager.workers.items()):
+                if current_time - worker.last_ping > 30:  # 30 second timeout
+                    disconnected_workers.append((worker_id, worker.gpu_id))
+            
+            for worker_id, gpu_id in disconnected_workers:
+                analytics.log_worker_disconnected(worker_id, gpu_id)
+                del session_manager.workers[worker_id]
+                logger.warning(f"Removed disconnected worker {worker_id} (GPU {gpu_id})")
+                
+            if disconnected_workers:
+                # Log updated GPU status
+                total_gpus = len(session_manager.workers)
+                active_gpus = len([w for w in session_manager.workers.values() if not w.is_available])
+                available_gpus = total_gpus - active_gpus
+                analytics.log_gpu_status(total_gpus, active_gpus, available_gpus)
+                
+        except Exception as e:
+            logger.error(f"Error in periodic worker health check: {e}")
+
 @app.on_event("startup")
 async def startup_event():
     # Start background tasks
     asyncio.create_task(periodic_queue_update())
+    asyncio.create_task(periodic_analytics_summary())
+    asyncio.create_task(periodic_worker_health_check())
+    
+    # Log initial system status
+    analytics._write_log("🚀 System initialized and ready to accept connections")
+    analytics._write_log("   Waiting for GPU workers to register...")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Log final system summary
+    analytics._write_log("")
+    analytics._write_log("🛑 System shutting down...")
+    analytics.log_periodic_summary()
+    analytics._write_log("System shutdown complete.")
 
 if __name__ == "__main__":
     import uvicorn
