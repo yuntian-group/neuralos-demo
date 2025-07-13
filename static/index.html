@@ -275,16 +275,16 @@
                 } else if (data.type === "timeout_warning") {
                     console.log(`Received timeout warning: ${data.timeout_in} seconds remaining`);
                     setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${data.timeout_in}</span> seconds and page will refresh automatically.`);
-                    startTimeoutCountdown(data.timeout_in, false); // false = show stay connected button
+                    startTimeoutCountdown(data.timeout_in, false, 'idle'); // false = show stay connected button
                 } else if (data.type === "activity_reset") {
                     console.log("Server detected user activity, resetting timeout");
-                    stopTimeoutCountdown();
+                    stopTimeoutCountdown('idle'); // Only clear idle timeout
                     
-                    // If there's still a session time limit active, restore that countdown
+                    // If there's still a session time limit active, update it
                     if (data.session_time_remaining && data.session_time_remaining > 0) {
-                        console.log(`Restoring session countdown: ${data.session_time_remaining} seconds remaining`);
+                        console.log(`Updating session countdown: ${data.session_time_remaining} seconds remaining`);
                         setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.session_time_remaining)}</span> seconds.`);
-                        startTimeoutCountdown(Math.ceil(data.session_time_remaining), true); // true = hide stay connected button
+                        startTimeoutCountdown(Math.ceil(data.session_time_remaining), true, 'session'); // true = hide stay connected button
                     }
                 } else if (data.type === "queue_update") {
                     console.log(`Queue update: Position ${data.position}/${data.total_waiting}, wait: ${data.maximum_wait_seconds.toFixed(1)} seconds`);
@@ -317,22 +317,23 @@
                 } else if (data.type === "session_warning") {
                     console.log(`Session time warning: ${data.time_remaining} seconds remaining`);
                     setTimeoutMessage(`Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true, 'session'); // true = hide stay connected button
                 } else if (data.type === "idle_warning") {
                     console.log(`Idle warning: ${data.time_remaining} seconds until timeout`);
                     setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds and page will refresh automatically.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining), false); // false = show stay connected button
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), false, 'idle'); // false = show stay connected button
                 } else if (data.type === "grace_period") {
                     console.log(`Grace period: ${data.time_remaining} seconds remaining`);
                     setTimeoutMessage(`Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true, 'grace'); // true = hide stay connected button
                 } else if (data.type === "time_limit_removed") {
                     console.log("Time limit removed - queue became empty");
-                    stopTimeoutCountdown();
+                    stopTimeoutCountdown('session'); // Only clear session timeout
+                    stopTimeoutCountdown('grace'); // Also clear grace period if active
                 } else if (data.type === "queue_limit_applied") {
                     console.log(`Queue limit applied, ${data.time_remaining} seconds remaining`);
                     setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
-                    startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
+                    startTimeoutCountdown(Math.ceil(data.time_remaining), true, 'session'); // true = hide stay connected button
                 } else if (data.type === "worker_failure") {
                     console.log("Worker failure detected, reconnecting...");
                     showConnectionStatus("🔄 GPU worker failed. Reconnecting to healthy worker...");
@@ -390,10 +391,17 @@
         let autoInputEnabled = true; // Default to enabled
         let userHasInteracted = false; // Track if user has moved mouse inside canvas
         
-        // Timeout countdown mechanism
+        // Timeout countdown mechanism - support concurrent timeouts
         let timeoutCountdownInterval = null;
         let timeoutCountdown = 10;
         let timeoutWarningActive = false;
+        
+        // Track concurrent timeout systems
+        let currentTimeouts = {
+            idle: null,        // { remaining: 10, hideButton: false }
+            session: null,     // { remaining: 60, hideButton: true }
+            grace: null        // { remaining: 5, hideButton: true }
+        };
         
         // Queue waiting countdown mechanism
         let queueCountdownInterval = null;
@@ -481,12 +489,36 @@
             }
         }
 
-        function startTimeoutCountdown(initialTime = 10, hideStayConnectedButton = false) {
+        function startTimeoutCountdown(initialTime = 10, hideStayConnectedButton = false, timeoutType = 'idle') {
+            // Update the specific timeout type
+            currentTimeouts[timeoutType] = {
+                remaining: initialTime,
+                hideButton: hideStayConnectedButton,
+                type: timeoutType
+            };
+            
+            // Find the timeout that will expire first
+            let earliestTimeout = null;
+            let earliestTime = Infinity;
+            
+            for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                if (timeout && timeout.remaining < earliestTime) {
+                    earliestTime = timeout.remaining;
+                    earliestTimeout = timeout;
+                }
+            }
+            
+            if (!earliestTimeout) {
+                stopTimeoutCountdown();
+                return;
+            }
+            
+            // Stop existing countdown
             if (timeoutCountdownInterval) {
                 clearInterval(timeoutCountdownInterval);
             }
             
-            timeoutCountdown = initialTime;
+            timeoutCountdown = earliestTimeout.remaining;
             timeoutWarningActive = true;
             
             // Show warning
@@ -495,10 +527,10 @@
                 warning.style.display = 'block';
             }
             
-            // Show/hide Stay Connected button based on context
+            // Show/hide Stay Connected button based on the earliest timeout
             const stayConnectedButton = warning.querySelector('button');
             if (stayConnectedButton) {
-                stayConnectedButton.style.display = hideStayConnectedButton ? 'none' : 'inline-block';
+                stayConnectedButton.style.display = earliestTimeout.hideButton ? 'none' : 'inline-block';
             }
             
             // Update initial display
@@ -507,26 +539,107 @@
                 countdownElement.textContent = timeoutCountdown;
             }
             
+            console.log(`Starting ${earliestTimeout.type} timeout countdown: ${timeoutCountdown} seconds`);
+            
             // Start countdown
             timeoutCountdownInterval = setInterval(() => {
-                timeoutCountdown--;
+                // Update all active timeouts
+                for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                    if (timeout) {
+                        timeout.remaining--;
+                    }
+                }
+                
+                // Find the timeout that will expire first
+                let newEarliestTimeout = null;
+                let newEarliestTime = Infinity;
+                
+                for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                    if (timeout && timeout.remaining > 0 && timeout.remaining < newEarliestTime) {
+                        newEarliestTime = timeout.remaining;
+                        newEarliestTimeout = timeout;
+                    }
+                }
+                
+                if (!newEarliestTimeout || newEarliestTimeout.remaining <= 0) {
+                    stopAutoInput();
+                    stopTimeoutCountdown();
+                    console.log("Connection timeout countdown finished - refreshing page");
+                    // Refresh the page to reconnect
+                    window.location.reload();
+                    return;
+                }
+                
+                // Update display with the earliest timeout
+                timeoutCountdown = newEarliestTimeout.remaining;
                 const countdownElement = document.getElementById('timeoutCountdown');
                 if (countdownElement) {
                     countdownElement.textContent = timeoutCountdown;
                 }
                 
-                if (timeoutCountdown <= 0) {
-                    stopAutoInput();
-                    stopTimeoutCountdown();
-                    //clearInterval(heartbeatInterval);
-                    console.log("Connection timeout countdown finished - refreshing page");
-                    // Refresh the page to reconnect
-                    window.location.reload();
+                // Update Stay Connected button visibility if the timeout type changed
+                if (newEarliestTimeout.type !== earliestTimeout.type) {
+                    console.log(`Timeout type changed from ${earliestTimeout.type} to ${newEarliestTimeout.type}`);
+                    const stayConnectedButton = warning.querySelector('button');
+                    if (stayConnectedButton) {
+                        stayConnectedButton.style.display = newEarliestTimeout.hideButton ? 'none' : 'inline-block';
+                    }
+                    
+                    // Update timeout message based on new timeout type
+                    if (newEarliestTimeout.type === 'idle') {
+                        setTimeoutMessage(`No activity detected. Connection will be dropped in <span id="timeoutCountdown">${newEarliestTimeout.remaining}</span> seconds and page will refresh automatically.`);
+                    } else if (newEarliestTimeout.type === 'session' || newEarliestTimeout.type === 'grace') {
+                        setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${newEarliestTimeout.remaining}</span> seconds.`);
+                    }
+                    
+                    earliestTimeout = newEarliestTimeout;
                 }
             }, 1000);
         }
 
-        function stopTimeoutCountdown() {
+        function stopTimeoutCountdown(timeoutType = null) {
+            if (timeoutType) {
+                // Clear specific timeout type
+                currentTimeouts[timeoutType] = null;
+                console.log(`Cleared ${timeoutType} timeout`);
+                
+                // Check if any other timeouts are still active
+                let hasActiveTimeouts = false;
+                for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                    if (timeout && timeout.remaining > 0) {
+                        hasActiveTimeouts = true;
+                        break;
+                    }
+                }
+                
+                if (hasActiveTimeouts) {
+                    // Restart countdown with remaining timeouts
+                    // Find the earliest remaining timeout and restart with it
+                    let earliestTimeout = null;
+                    let earliestTime = Infinity;
+                    
+                    for (const [type, timeout] of Object.entries(currentTimeouts)) {
+                        if (timeout && timeout.remaining < earliestTime) {
+                            earliestTime = timeout.remaining;
+                            earliestTimeout = timeout;
+                        }
+                    }
+                    
+                    if (earliestTimeout) {
+                        startTimeoutCountdown(earliestTimeout.remaining, earliestTimeout.hideButton, earliestTimeout.type);
+                    }
+                    return;
+                }
+            } else {
+                // Clear all timeouts
+                currentTimeouts = {
+                    idle: null,
+                    session: null,
+                    grace: null
+                };
+                console.log("Cleared all timeouts");
+            }
+            
             if (timeoutCountdownInterval) {
                 clearInterval(timeoutCountdownInterval);
                 timeoutCountdownInterval = null;
@@ -618,7 +731,7 @@
                     console.error("Error sending stay connected ping:", error);
                 }
             }
-            stopTimeoutCountdown();
+            stopTimeoutCountdown('idle'); // Only clear idle timeout, not session timeout
         }
 
         function sendInputState(x, y, isLeftClick = false, isRightClick = false, keysDownArr = [], keysUpArr = [], wheelDeltaX = 0, wheelDeltaY = 0) {
