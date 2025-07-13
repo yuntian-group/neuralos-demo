@@ -287,7 +287,20 @@
                         showConnectionStatus("Starting soon...");
                         stopQueueCountdown();
                     } else {
-                        startQueueCountdown(waitSeconds);
+                        // Only restart countdown if not already running or if time changed significantly
+                        if (!queueCountdownActive) {
+                            console.log(`Starting queue countdown: ${waitSeconds} seconds`);
+                            startQueueCountdown(waitSeconds);
+                        } else if (waitSeconds < queueWaitTime - 10 || waitSeconds > queueWaitTime + 15) {
+                            // Be responsive to decreases (users dropping out) and significant increases
+                            console.log(`Updating queue countdown: ${queueWaitTime} -> ${waitSeconds} (significant change)`);
+                            startQueueCountdown(waitSeconds);
+                        } else if (Math.abs(queueWaitTime - waitSeconds) <= 3) {
+                            // Small differences (1-3 seconds) - keep local countdown running
+                            console.log(`Ignoring small change: ${queueWaitTime} vs ${waitSeconds} (keeping local countdown)`);
+                        } else {
+                            console.log(`Moderate change ignored: ${queueWaitTime} -> ${waitSeconds} (${Math.abs(queueWaitTime - waitSeconds)}s difference)`);
+                        }
                     }
                 } else if (data.type === "session_start") {
                     console.log("Session started, clearing queue display");
@@ -310,8 +323,8 @@
                     console.log("Time limit removed - queue became empty");
                     stopTimeoutCountdown();
                 } else if (data.type === "queue_limit_applied") {
-                    console.log(`Queue limit applied: ${data.message}, ${data.time_remaining} seconds remaining`);
-                    setTimeoutMessage(`⏰ ${data.message}`);
+                    console.log(`Queue limit applied, ${data.time_remaining} seconds remaining`);
+                    setTimeoutMessage(`⏰ Other users waiting. Time remaining: <span id="timeoutCountdown">${Math.ceil(data.time_remaining)}</span> seconds.`);
                     startTimeoutCountdown(Math.ceil(data.time_remaining), true); // true = hide stay connected button
                 }
             };
