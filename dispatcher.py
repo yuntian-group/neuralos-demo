@@ -866,12 +866,22 @@ async def get():
 @app.post("/register_worker")
 async def register_worker(worker_info: dict):
     """Endpoint for workers to register themselves"""
-    await session_manager.register_worker(
-        worker_info["worker_id"],
-        worker_info["worker_address"], 
-        worker_info["endpoint"]
-    )
-    return {"status": "registered"}
+    logger.info(f"📥 Received worker registration request")
+    logger.info(f"📊 Worker info: {worker_info}")
+    
+    try:
+        await session_manager.register_worker(
+            worker_info["worker_id"],
+            worker_info["worker_address"], 
+            worker_info["endpoint"]
+        )
+        logger.info(f"✅ Successfully processed worker registration")
+        return {"status": "registered"}
+    except Exception as e:
+        logger.error(f"❌ Failed to register worker: {e}")
+        import traceback
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        raise
 
 @app.post("/worker_ping")
 async def worker_ping(worker_info: dict):
@@ -1084,6 +1094,8 @@ async def periodic_worker_health_check():
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("🚀 Dispatcher startup event triggered")
+    
     # Start background tasks
     asyncio.create_task(periodic_queue_update())
     asyncio.create_task(periodic_system_validation())
@@ -1093,6 +1105,8 @@ async def startup_event():
     # Log initial system status
     analytics._write_log("🚀 System initialized and ready to accept connections")
     analytics._write_log("   Waiting for GPU workers to register...")
+    
+    logger.info("✅ Dispatcher startup complete - ready to accept worker registrations")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -1110,4 +1124,13 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000, help="Port to run the dispatcher on")
     args = parser.parse_args()
     
-    uvicorn.run(app, host="0.0.0.0", port=args.port) 
+    logger.info(f"🌐 Starting dispatcher on 0.0.0.0:{args.port}")
+    logger.info(f"🔗 Dispatcher will be available at http://localhost:{args.port}")
+    
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=args.port)
+    except Exception as e:
+        logger.error(f"❌ Failed to start dispatcher: {e}")
+        import traceback
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        raise 

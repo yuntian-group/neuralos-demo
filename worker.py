@@ -154,16 +154,47 @@ class GPUWorker:
 
     async def register_with_dispatcher(self):
         """Register this worker with the dispatcher"""
+        logger.info(f"🔗 Attempting to register with dispatcher at {self.dispatcher_url}")
+        logger.info(f"📊 Worker details: ID={self.worker_id}, Address={self.worker_address}")
+        
+        # Test basic connectivity first
+        logger.info(f"🧪 Testing basic connectivity to dispatcher...")
         try:
             async with aiohttp.ClientSession() as session:
-                await session.post(f"{self.dispatcher_url}/register_worker", json={
-                    "worker_id": self.worker_id,
-                    "worker_address": self.worker_address,
-                    "endpoint": f"http://{self.worker_address}"
-                })
-            logger.info(f"Successfully registered worker {self.worker_id} ({self.worker_address}) with dispatcher")
+                async with session.get(f"{self.dispatcher_url}/") as response:
+                    logger.info(f"🌐 Connectivity test successful - dispatcher responded with status {response.status}")
         except Exception as e:
-            logger.error(f"Failed to register with dispatcher: {e}")
+            logger.error(f"❌ Connectivity test FAILED: {e}")
+            logger.error(f"🔍 This means the dispatcher is not reachable at {self.dispatcher_url}")
+            raise
+        
+        try:
+            registration_data = {
+                "worker_id": self.worker_id,
+                "worker_address": self.worker_address,
+                "endpoint": f"http://{self.worker_address}"
+            }
+            logger.info(f"📤 Sending registration data: {registration_data}")
+            
+            async with aiohttp.ClientSession() as session:
+                logger.info(f"🌐 Making POST request to {self.dispatcher_url}/register_worker")
+                
+                async with session.post(f"{self.dispatcher_url}/register_worker", json=registration_data) as response:
+                    logger.info(f"📥 Dispatcher response status: {response.status}")
+                    response_text = await response.text()
+                    logger.info(f"📥 Dispatcher response body: {response_text}")
+                    
+                    if response.status == 200:
+                        logger.info(f"✅ Successfully registered worker {self.worker_id} ({self.worker_address}) with dispatcher")
+                    else:
+                        logger.error(f"❌ Dispatcher returned error status {response.status}: {response_text}")
+                        
+        except Exception as e:
+            logger.error(f"❌ Failed to register with dispatcher: {e}")
+            logger.error(f"🔍 Exception type: {type(e)}")
+            logger.error(f"🔍 Dispatcher URL: {self.dispatcher_url}")
+            import traceback
+            logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
 
     async def ping_dispatcher(self):
         """Periodically ping the dispatcher to maintain connection"""
@@ -718,14 +749,21 @@ async def health_check():
 
 async def startup_worker(worker_address: str, dispatcher_url: str):
     """Initialize the worker"""
+    logger.info(f"🔧 Initializing worker with address {worker_address}")
+    
     global worker
     worker = GPUWorker(worker_address, dispatcher_url)
+    logger.info(f"🏗️ Worker object created: {worker.worker_id}")
     
     # Register with dispatcher
+    logger.info(f"📞 About to register with dispatcher")
     await worker.register_with_dispatcher()
+    logger.info(f"📝 Registration attempt completed")
     
     # Start ping task
+    logger.info(f"💓 Starting ping task")
     asyncio.create_task(worker.ping_dispatcher())
+    logger.info(f"✅ Worker initialization completed")
 
 if __name__ == "__main__":
     import uvicorn
@@ -751,7 +789,18 @@ if __name__ == "__main__":
     
     @app.on_event("startup")
     async def startup_event():
+        logger.info(f"🚀 Worker startup event triggered for {args.worker_address}")
         await startup_worker(args.worker_address, args.dispatcher_url)
+        logger.info(f"✅ Worker startup complete for {args.worker_address}")
     
-    logger.info(f"Starting worker {args.worker_address}")
-    uvicorn.run(app, host="0.0.0.0", port=port) 
+    logger.info(f"🌐 Starting worker {args.worker_address} on 0.0.0.0:{port}")
+    logger.info(f"🔗 Worker will be available at http://{args.worker_address}")
+    logger.info(f"📡 Will register with dispatcher at {args.dispatcher_url}")
+    
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    except Exception as e:
+        logger.error(f"❌ Failed to start worker: {e}")
+        import traceback
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        raise 
