@@ -721,31 +721,62 @@ class SessionManager:
             analytics.log_queue_status(len(self.session_queue), maximum_wait)
 
     def _calculate_maximum_wait_time(self, position_in_queue: int) -> float:
-        """Calculate maximum possible wait time (worst case scenario)"""
+        """Calculate realistic wait time based on actual session remaining times"""
         available_workers = len([w for w in self.workers.values() if w.is_available])
         
         # If there are available workers, no wait time
         if available_workers > 0:
             return 0
         
-        # Calculate maximum wait time based on position and worker count
+        # Calculate wait time based on position and worker count
         num_workers = len(self.workers)
         if num_workers == 0:
             return 999  # No workers available
         
-        # When queue exists, each session is limited to 60 seconds maximum
-        # Calculate how many "waves" of users need to complete before this user gets GPU
-        waves_to_wait = (position_in_queue - 1) // num_workers
-        position_in_final_wave = (position_in_queue - 1) % num_workers + 1
+        # Get actual remaining times for active sessions
+        current_time = time.time()
+        active_session_remaining_times = []
         
-        # Maximum time per wave is 60 seconds (session time limit when queue exists)
-        max_session_time = self.MAX_SESSION_TIME_WITH_QUEUE
+        for session_id in self.active_sessions:
+            session = self.sessions.get(session_id)
+            if session:
+                # Only consider session time limit (hard limit), not idle timeout
+                # Users can reset idle timeout by moving mouse, but session limit is fixed
+                if session.max_session_time and session.session_limit_start_time:
+                    elapsed = current_time - session.session_limit_start_time
+                    remaining_time = max(0, session.max_session_time - elapsed)
+                else:
+                    # No session limit set (shouldn't happen when queue exists, but fallback)
+                    remaining_time = self.MAX_SESSION_TIME_WITH_QUEUE
+                
+                active_session_remaining_times.append(remaining_time)
         
-        # Total maximum wait = (complete waves * 60s) + 60s for final wave
-        # The +1 wave accounts for current active sessions finishing
-        maximum_wait = (waves_to_wait + 1) * max_session_time
+        # Sort remaining times (shortest first)
+        active_session_remaining_times.sort()
         
-        return maximum_wait
+        # Calculate when this user will get a worker
+        if position_in_queue <= len(active_session_remaining_times):
+            # User will get a worker when the Nth session ends
+            estimated_wait = active_session_remaining_times[position_in_queue - 1]
+            logger.info(f"Queue position {position_in_queue}: Will get worker when session #{position_in_queue} ends in {estimated_wait:.1f}s")
+            logger.info(f"Active session remaining times: {[f'{t:.1f}s' for t in active_session_remaining_times]}")
+        else:
+            # More people in queue than active sessions
+            # Need to wait for multiple "waves" to complete
+            full_waves = (position_in_queue - 1) // num_workers
+            position_in_final_wave = (position_in_queue - 1) % num_workers
+            
+            # Wait for current sessions to end, then full waves, then partial wave
+            if active_session_remaining_times:
+                first_wave_time = max(active_session_remaining_times)
+            else:
+                first_wave_time = self.MAX_SESSION_TIME_WITH_QUEUE
+            
+            additional_wave_time = full_waves * self.MAX_SESSION_TIME_WITH_QUEUE
+            estimated_wait = first_wave_time + additional_wave_time
+            logger.info(f"Queue position {position_in_queue}: Need {full_waves} full waves + current sessions. Wait: {estimated_wait:.1f}s")
+        
+        return estimated_wait
 
     async def handle_user_activity(self, session_id: str):
         """Update user activity timestamp and reset warning flags"""
