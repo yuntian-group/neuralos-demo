@@ -35,4 +35,47 @@ WORKDIR $HOME/app
 # Copy the current directory contents into the container at $HOME/app setting the owner to the user
 COPY --chown=user . $HOME/app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1", "--timeout-keep-alive", "3000"]
+# Create a startup script for HF Spaces
+COPY --chown=user <<EOF $HOME/app/start_hf_spaces.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting Neural OS for HF Spaces"
+echo "===================================="
+
+# Start dispatcher in background
+echo "🎯 Starting dispatcher..."
+python dispatcher.py --port 7860 > dispatcher.log 2>&1 &
+DISPATCHER_PID=\$!
+
+# Wait for dispatcher to start
+sleep 3
+
+# Start single worker (HF Spaces typically has 1 GPU or CPU)
+echo "🔧 Starting worker..."
+python worker.py --worker-address localhost:8001 --dispatcher-url http://localhost:7860 > worker.log 2>&1 &
+WORKER_PID=\$!
+
+# Wait for worker to initialize
+echo "⏳ Waiting for worker to initialize..."
+sleep 30
+
+echo "✅ System ready!"
+echo "🌍 Web interface: http://localhost:7860"
+
+# Function to cleanup
+cleanup() {
+    echo "🛑 Shutting down..."
+    kill \$DISPATCHER_PID \$WORKER_PID 2>/dev/null || true
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Wait for dispatcher (main process)
+wait \$DISPATCHER_PID
+EOF
+
+RUN chmod +x $HOME/app/start_hf_spaces.sh
+
+CMD ["bash", "start_hf_spaces.sh"]
