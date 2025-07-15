@@ -189,6 +189,19 @@
             console.log("connect() function called - creating new WebSocket connection");
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            //  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Fix for HF Spaces - extract space name from URL path
+            // let host = window.location.host;
+            // if (window.location.host === 'huggingface.co' && window.location.pathname.includes('/spaces/')) {
+            //     // Extract username and space name from /spaces/username/spacename
+            //     const pathParts = window.location.pathname.split('/');
+            //     if (pathParts.length >= 4 && pathParts[1] === 'spaces') {
+            //         const username = pathParts[2];
+            //         const spacename = pathParts[3];
+            //         host = `${username}-${spacename}.hf.space`;
+            //     }
+            // }
+            //socket = new WebSocket(`${protocol}//${host}/ws`);
 
             socket.onopen = function(event) {
                 console.log("WebSocket connection established");
