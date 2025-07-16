@@ -54,6 +54,7 @@ class GPUWorker:
         self.USE_RNN = False
         
         self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k72-108k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k722-130k"
         
         # Initialize model
         self._initialize_model()
