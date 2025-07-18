@@ -9,6 +9,8 @@ import tempfile
 from datetime import datetime
 import sqlite3
 import re
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -29,9 +31,14 @@ REMOTE_DATA_DIR = "/root/neuralos-demo-datagen/train_dataset_encoded_online"  # 
 LOCAL_DATA_DIR = "./train_dataset_encoded_online"  # Local destination
 DB_FILE = "transfer_state.db"
 POLL_INTERVAL = 300  # Check for new files every 5 minutes
+STABILITY_WAIT = 5   # Reduced from 30 seconds to 5 seconds
+MAX_PARALLEL_TRANSFERS = 3  # Number of parallel file transfers
 
 # Ensure local directories exist
 os.makedirs(LOCAL_DATA_DIR, exist_ok=True)
+
+# Thread lock for database operations
+db_lock = threading.Lock()
 
 
 def initialize_database():
@@ -65,47 +72,50 @@ def initialize_database():
 
 def is_file_transferred(filename, remote_size, remote_mtime):
     """Check if a file has already been transferred with the same size and mtime."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "SELECT 1 FROM transferred_files WHERE filename = ? AND remote_size = ? AND remote_mtime = ?",
-        (filename, remote_size, remote_mtime)
-    )
-    result = cursor.fetchone() is not None
-    
-    conn.close()
-    return result
+    with db_lock:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT 1 FROM transferred_files WHERE filename = ? AND remote_size = ? AND remote_mtime = ?",
+            (filename, remote_size, remote_mtime)
+        )
+        result = cursor.fetchone() is not None
+        
+        conn.close()
+        return result
 
 
 def mark_file_transferred(filename, remote_size, remote_mtime, checksum):
     """Mark a file as successfully transferred."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        """INSERT OR REPLACE INTO transferred_files 
-           (filename, remote_size, remote_mtime, transfer_time, checksum) 
-           VALUES (?, ?, ?, ?, ?)""",
-        (filename, remote_size, remote_mtime, datetime.now().isoformat(), checksum)
-    )
-    
-    conn.commit()
-    conn.close()
+    with db_lock:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """INSERT OR REPLACE INTO transferred_files 
+               (filename, remote_size, remote_mtime, transfer_time, checksum) 
+               VALUES (?, ?, ?, ?, ?)""",
+            (filename, remote_size, remote_mtime, datetime.now().isoformat(), checksum)
+        )
+        
+        conn.commit()
+        conn.close()
 
 
 def update_transfer_state(key, value):
     """Update the transfer state for a key."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "INSERT OR REPLACE INTO transfer_state (key, value) VALUES (?, ?)",
-        (key, value)
-    )
-    
-    conn.commit()
-    conn.close()
+    with db_lock:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "INSERT OR REPLACE INTO transfer_state (key, value) VALUES (?, ?)",
+            (key, value)
+        )
+        
+        conn.commit()
+        conn.close()
 
 
 def get_transfer_state(key):
@@ -179,7 +189,7 @@ def safe_transfer_file(sftp, remote_path, local_path):
         raise
 
 
-def is_file_stable(sftp, remote_path, wait_time=30):
+def is_file_stable(sftp, remote_path, wait_time=STABILITY_WAIT):
     """
     Check if a file is stable (not being written to) by comparing its size
     before and after a short wait period.
@@ -422,27 +432,63 @@ def run_transfer_cycle():
         tar_files = {name: info for name, info in remote_files.items() if tar_pattern.match(name)}
         logger.info(f"Found {len(tar_files)} TAR files in snapshot")
         
-        tar_count = 0
-        for tar_file, file_info in tar_files.items():
+        # Sort tar files numerically by the record number
+        def extract_record_number(filename):
+            match = re.search(r'record_(\d+)\.tar$', filename)
+            return int(match.group(1)) if match else float('inf')
+        
+        sorted_tar_files = sorted(tar_files.items(), key=lambda x: extract_record_number(x[0]))
+        
+        # Filter files that need to be transferred (quick check only)
+        files_to_check = []
+        for tar_file, file_info in sorted_tar_files:
             # Skip if already transferred with same size and mtime
             if is_file_transferred(tar_file, file_info['size'], file_info['mtime']):
                 logger.debug(f"Skipping already transferred file: {tar_file}")
                 continue
                 
-            # Check if file is stable
-            is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
-            if not is_stable:
-                logger.info(f"Skipping unstable file: {tar_file}")
-                continue
-                
-            # Transfer the file
-            try:
-                local_path = os.path.join(LOCAL_DATA_DIR, tar_file)
-                checksum = safe_transfer_file(sftp, file_info['path'], local_path)
-                mark_file_transferred(tar_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
-                tar_count += 1
-            except Exception as e:
-                logger.error(f"Failed to transfer {tar_file}: {str(e)}")
+            files_to_check.append((tar_file, file_info))
+        
+        logger.info(f"Found {len(files_to_check)} TAR files to check and transfer")
+        
+        # Transfer files in parallel (including stability check)
+        tar_count = 0
+        if files_to_check:
+            def transfer_single_file(args):
+                tar_file, file_info = args
+                thread_client = None
+                try:
+                    # Create a new SFTP connection for this thread
+                    thread_client = create_ssh_client()
+                    thread_sftp = thread_client.open_sftp()
+                    
+                    # Check if file is stable (now done in parallel)
+                    is_stable, updated_stat = is_file_stable(thread_sftp, file_info['path'])
+                    if not is_stable:
+                        logger.info(f"Skipping unstable file: {tar_file}")
+                        return False
+                    
+                    local_path = os.path.join(LOCAL_DATA_DIR, tar_file)
+                    checksum = safe_transfer_file(thread_sftp, file_info['path'], local_path)
+                    mark_file_transferred(tar_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+                    
+                    logger.info(f"Successfully transferred {tar_file}")
+                    return True
+                except Exception as e:
+                    logger.error(f"Failed to transfer {tar_file}: {str(e)}")
+                    return False
+                finally:
+                    # Always close the connection if it was created
+                    if thread_client is not None:
+                        try:
+                            thread_client.close()
+                        except Exception as e:
+                            logger.warning(f"Error closing connection for {tar_file}: {str(e)}")
+            
+            # Use ThreadPoolExecutor for parallel stability checks and transfers
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_TRANSFERS) as executor:
+                results = list(executor.map(transfer_single_file, files_to_check))
+                tar_count = sum(results)
                 
         logger.info(f"Transferred {tar_count} new TAR files from snapshot")
         
