@@ -393,9 +393,39 @@ def run_transfer_cycle():
         client = create_ssh_client()
         sftp = client.open_sftp()
         
-        # Step 0: Get a snapshot of all files with their timestamps
-        # This creates a consistent view of the remote directory at this point in time
-        logger.info("Taking snapshot of remote directory state")
+        # Step 0: Transfer CSV file FIRST (get current state before snapshot)
+        csv_file = "train_dataset.target_frames.csv"
+        csv_file_path = os.path.join(REMOTE_DATA_DIR, csv_file)
+        csv_success = False
+        
+        try:
+            csv_stat = sftp.stat(csv_file_path)
+            # Only transfer if needed
+            if not is_file_transferred(csv_file, csv_stat.st_size, csv_stat.st_mtime):
+                is_stable, updated_csv_stat = is_file_stable(sftp, csv_file_path)
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, csv_file)
+                    checksum = safe_transfer_file(sftp, csv_file_path, local_path)
+                    mark_file_transferred(csv_file, updated_csv_stat.st_size, updated_csv_stat.st_mtime, checksum)
+                    update_transfer_state("last_csv_transfer", datetime.now().isoformat())
+                    logger.info("Successfully transferred CSV file (before snapshot)")
+                    csv_success = True
+                else:
+                    logger.warning("CSV file is still being written, skipping")
+                    csv_success = False
+            else:
+                logger.debug("CSV file unchanged, skipping")
+                csv_success = True
+        except FileNotFoundError:
+            logger.warning("CSV file not found on remote server")
+            csv_success = False
+        except Exception as e:
+            logger.error(f"Error checking CSV file: {str(e)}")
+            csv_success = False
+        
+        # Step 1: NOW take snapshot of all files (after CSV transfer)
+        # This ensures TAR files in snapshot include everything referenced by the CSV
+        logger.info("Taking snapshot of remote directory state (after CSV transfer)")
         remote_files = {}
         for filename in sftp.listdir(REMOTE_DATA_DIR):
             try:
@@ -411,7 +441,7 @@ def run_transfer_cycle():
                 
         logger.info(f"Found {len(remote_files)} files in remote directory snapshot")
         
-        # Step 1: Transfer padding.npy file if needed
+        # Step 2: Transfer padding.npy file if needed
         if "padding.npy" in remote_files:
             file_info = remote_files["padding.npy"]
             if not is_file_transferred("padding.npy", file_info['size'], file_info['mtime']):
@@ -426,34 +456,9 @@ def run_transfer_cycle():
                     logger.warning("Padding file is still being written, skipping")
         else:
             logger.warning("padding.npy not found in remote directory")
-        
-        # Step 2: Transfer CSV file from the snapshot
-        csv_file = "train_dataset.target_frames.csv"
-        csv_success = False  # Initialize variable
-        if csv_file in remote_files:
-            file_info = remote_files[csv_file]
-            
-            # Only transfer if needed
-            if not is_file_transferred(csv_file, file_info['size'], file_info['mtime']):
-                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
-                if is_stable:
-                    local_path = os.path.join(LOCAL_DATA_DIR, csv_file)
-                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
-                    mark_file_transferred(csv_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
-                    update_transfer_state("last_csv_transfer", datetime.now().isoformat())
-                    logger.info("Successfully transferred CSV file from snapshot")
-                    csv_success = True
-                else:
-                    logger.warning("CSV file is still being written, skipping")
-                    csv_success = False
-            else:
-                logger.debug("CSV file unchanged, skipping")
-                csv_success = True
-        else:
-            logger.warning("CSV file not found in snapshot")
-            csv_success = False
 
-        # Step 3: Transfer TAR files from the snapshot
+        # Step 3: Transfer TAR files from the snapshot 
+        # (Snapshot taken AFTER CSV, so includes all TAR files referenced by CSV)
         tar_pattern = re.compile(r'record_.*\.tar$')
         tar_files = {name: info for name, info in remote_files.items() if tar_pattern.match(name)}
         logger.info(f"Found {len(tar_files)} TAR files in snapshot")
