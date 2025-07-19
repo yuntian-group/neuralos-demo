@@ -416,44 +416,38 @@ def run_transfer_cycle():
             else:
                 logger.debug("CSV file unchanged, skipping")
                 csv_success = True
-        except FileNotFoundError:
-            logger.warning("CSV file not found on remote server")
+        except Exception as e:
+            logger.error(f"Error checking CSV file: {str(e)}")
             csv_success = False
-                 except Exception as e:
-             logger.error(f"Error checking CSV file: {str(e)}")
-             csv_success = False
-         
-         # Step 1: Transfer PKL file (right after CSV, before snapshot)
-         pkl_file = "image_action_mapping_with_key_states.pkl"
-         pkl_file_path = os.path.join(REMOTE_DATA_DIR, pkl_file)
-         pkl_success = False
-         
-         try:
-             pkl_stat = sftp.stat(pkl_file_path)
-             # Only transfer if needed
-             if not is_file_transferred(pkl_file, pkl_stat.st_size, pkl_stat.st_mtime):
-                 is_stable, updated_pkl_stat = is_file_stable(sftp, pkl_file_path)
-                 if is_stable:
-                     local_path = os.path.join(LOCAL_DATA_DIR, pkl_file)
-                     checksum = safe_transfer_file(sftp, pkl_file_path, local_path)
-                     mark_file_transferred(pkl_file, updated_pkl_stat.st_size, updated_pkl_stat.st_mtime, checksum)
-                     update_transfer_state("last_pkl_transfer", datetime.now().isoformat())
-                     logger.info("Successfully transferred PKL file (after CSV)")
-                     pkl_success = True
-                 else:
-                     logger.warning("PKL file is still being written, skipping")
-                     pkl_success = False
-             else:
-                 logger.debug("PKL file unchanged, skipping")
-                 pkl_success = True
-         except FileNotFoundError:
-             logger.warning("PKL file not found on remote server")
-             pkl_success = False
-         except Exception as e:
-             logger.error(f"Error checking PKL file: {str(e)}")
-             pkl_success = False
-         
-         # Step 2: NOW take snapshot of all files (after CSV and PKL transfer)
+        
+        # Step 1: Transfer PKL file (right after CSV, before snapshot)
+        pkl_file = "image_action_mapping_with_key_states.pkl"
+        pkl_file_path = os.path.join(REMOTE_DATA_DIR, pkl_file)
+        pkl_success = False
+        
+        try:
+            pkl_stat = sftp.stat(pkl_file_path)
+            # Only transfer if needed
+            if not is_file_transferred(pkl_file, pkl_stat.st_size, pkl_stat.st_mtime):
+                is_stable, updated_pkl_stat = is_file_stable(sftp, pkl_file_path)
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, pkl_file)
+                    checksum = safe_transfer_file(sftp, pkl_file_path, local_path)
+                    mark_file_transferred(pkl_file, updated_pkl_stat.st_size, updated_pkl_stat.st_mtime, checksum)
+                    update_transfer_state("last_pkl_transfer", datetime.now().isoformat())
+                    logger.info("Successfully transferred PKL file (after CSV)")
+                    pkl_success = True
+                else:
+                    logger.warning("PKL file is still being written, skipping")
+                    pkl_success = False
+            else:
+                logger.debug("PKL file unchanged, skipping")
+                pkl_success = True
+        except Exception as e:
+            logger.error(f"Error checking PKL file: {str(e)}")
+            pkl_success = False
+        
+        # Step 2: NOW take snapshot of all files (after CSV and PKL transfer)
         # This ensures TAR files in snapshot include everything referenced by the CSV
         logger.info("Taking snapshot of remote directory state (after CSV and PKL transfer)")
         remote_files = {}
