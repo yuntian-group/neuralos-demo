@@ -429,6 +429,7 @@ def run_transfer_cycle():
         
         # Step 2: Transfer CSV file from the snapshot
         csv_file = "train_dataset.target_frames.csv"
+        csv_success = False  # Initialize variable
         if csv_file in remote_files:
             file_info = remote_files[csv_file]
             
