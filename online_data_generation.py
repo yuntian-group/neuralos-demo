@@ -518,8 +518,12 @@ def format_trajectory_for_processing(trajectory):
             if key in down_keys and key in stoi:
                 down_keys.remove(key)
                 key_events.append(("keyup", key))
+        x = inputs.get("x")
+        y = inputs.get("y")
+        x = min(max(0, x), SCREEN_WIDTH - 1) if x is not None else 0
+        y = min(max(0, y), SCREEN_HEIGHT - 1) if y is not None else 0
         event = {
-            "pos": (inputs.get("x"), inputs.get("y")),
+            "pos": (x, y),
             "left_click": inputs.get("is_left_click", False),
             "right_click": inputs.get("is_right_click", False),
             "key_events": key_events,
