@@ -427,7 +427,32 @@ def run_transfer_cycle():
         else:
             logger.warning("padding.npy not found in remote directory")
         
-        # Step 2: Transfer TAR files from the snapshot
+        # Step 2: Transfer CSV file from the snapshot
+        csv_file = "train_dataset.target_frames.csv"
+        if csv_file in remote_files:
+            file_info = remote_files[csv_file]
+            
+            # Only transfer if needed
+            if not is_file_transferred(csv_file, file_info['size'], file_info['mtime']):
+                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
+                if is_stable:
+                    local_path = os.path.join(LOCAL_DATA_DIR, csv_file)
+                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
+                    mark_file_transferred(csv_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
+                    update_transfer_state("last_csv_transfer", datetime.now().isoformat())
+                    logger.info("Successfully transferred CSV file from snapshot")
+                    csv_success = True
+                else:
+                    logger.warning("CSV file is still being written, skipping")
+                    csv_success = False
+            else:
+                logger.debug("CSV file unchanged, skipping")
+                csv_success = True
+        else:
+            logger.warning("CSV file not found in snapshot")
+            csv_success = False
+
+        # Step 3: Transfer TAR files from the snapshot
         tar_pattern = re.compile(r'record_.*\.tar$')
         tar_files = {name: info for name, info in remote_files.items() if tar_pattern.match(name)}
         logger.info(f"Found {len(tar_files)} TAR files in snapshot")
@@ -492,7 +517,7 @@ def run_transfer_cycle():
                 
         logger.info(f"Transferred {tar_count} new TAR files from snapshot")
         
-        # Step 3: Transfer PKL file from the snapshot
+        # Step 4: Transfer PKL file from the snapshot
         pkl_file = "image_action_mapping_with_key_states.pkl"
         if pkl_file in remote_files:
             file_info = remote_files[pkl_file]
@@ -517,33 +542,7 @@ def run_transfer_cycle():
             logger.warning("PKL file not found in snapshot")
             pkl_success = False
         
-        # Step 4: Transfer CSV file from the snapshot (only if PKL succeeded)
-        csv_file = "train_dataset.target_frames.csv"
-        if pkl_success and csv_file in remote_files:
-            file_info = remote_files[csv_file]
-            
-            # Only transfer if needed
-            if not is_file_transferred(csv_file, file_info['size'], file_info['mtime']):
-                is_stable, updated_stat = is_file_stable(sftp, file_info['path'])
-                if is_stable:
-                    local_path = os.path.join(LOCAL_DATA_DIR, csv_file)
-                    checksum = safe_transfer_file(sftp, file_info['path'], local_path)
-                    mark_file_transferred(csv_file, updated_stat.st_size, updated_stat.st_mtime, checksum)
-                    update_transfer_state("last_csv_transfer", datetime.now().isoformat())
-                    logger.info("Successfully transferred CSV file from snapshot")
-                    csv_success = True
-                else:
-                    logger.warning("CSV file is still being written, skipping")
-                    csv_success = False
-            else:
-                logger.debug("CSV file unchanged, skipping")
-                csv_success = True
-        else:
-            if not pkl_success:
-                logger.warning("Skipping CSV transfer because PKL transfer failed")
-            else:
-                logger.warning("CSV file not found in snapshot")
-            csv_success = False
+        
         
         return tar_count > 0 or pkl_success or csv_success
     except Exception as e:
