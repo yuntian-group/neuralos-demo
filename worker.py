@@ -55,6 +55,9 @@ class GPUWorker:
         
         self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k72-108k"
         self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k722-130k"
+        #self.MODEL_NAME = "yuntian-deng/computer-model-s-x0-onlineonly-222222k722222-42k"
+        #self.MODEL_NAME = "yuntian-deng/computer-model-s-x0-onlineonly-222222k722222-60k"
+        #self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k722n-16k"
         
         # Initialize model
         self._initialize_model()
@@ -88,7 +91,7 @@ class GPUWorker:
         self.LATENT_DIMS = (16, self.SCREEN_HEIGHT // 8, self.SCREEN_WIDTH // 8)
         
         # Initialize model based on model name
-        if 'origunet' in self.MODEL_NAME:
+        if True or 'origunet' in self.MODEL_NAME:
             if 'x0' in self.MODEL_NAME:
                 if 'ddpm32' in self.MODEL_NAME:
                     self.TIMESTEPS = 32
