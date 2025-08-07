@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 FRAMES_DIR = "interaction_logs"
 OUTPUT_DIR = "human_evaluation_videos"
 # DEMO_FRAMES_PREFIX will be determined from session data
-FPS = 2
+FPS = 1.8
 TARGET_VIDEO_LENGTHS = [10, 20, 30, 40, 50, 60]  # 1.6s, 3.2s, 6.4s, 12.8s, 25.6s, 51.2s, 102.4s at 1.8fps
 TARGET_FRAME_COUNTS = [int(math.ceil(length * FPS)) for length in TARGET_VIDEO_LENGTHS]
 
@@ -781,6 +781,7 @@ def create_evaluation_html(generated_pairs):
     <script>
         // Data from server - will be populated
         const evaluationData = {evaluation_data_placeholder};
+        const FPS = {fps_placeholder};
         
         let currentSetting = null;
         let currentExample = 0;
@@ -796,7 +797,7 @@ def create_evaluation_html(generated_pairs):
                 const option = document.createElement('option');
                 option.value = setting;
                 const frames = parseInt(setting);
-                const duration = (frames / 15).toFixed(1);
+                const duration = (frames / FPS).toFixed(1);
                 option.textContent = `${frames} frames (${duration}s)`;
                 settingSelect.appendChild(option);
             });
@@ -836,8 +837,8 @@ def create_evaluation_html(generated_pairs):
             const videoLeft = document.getElementById('videoLeft');
             const videoRight = document.getElementById('videoRight');
             
-            videoLeft.src = `${currentSetting}frames_${(parseInt(currentSetting)/15).toFixed(1)}s/${example.left_video}`;
-            videoRight.src = `${currentSetting}frames_${(parseInt(currentSetting)/15).toFixed(1)}s/${example.right_video}`;
+            videoLeft.src = `${currentSetting}frames_${(parseInt(currentSetting)/FPS).toFixed(1)}s/${example.left_video}`;
+            videoRight.src = `${currentSetting}frames_${(parseInt(currentSetting)/FPS).toFixed(1)}s/${example.right_video}`;
             
             // Reset selection buttons
             document.getElementById('selectLeft').classList.remove('selected');
@@ -938,7 +939,7 @@ def create_evaluation_html(generated_pairs):
                 
                 const accuracy = total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0';
                 const frames = parseInt(setting);
-                const duration = (frames / 15).toFixed(1);
+                const duration = (frames / FPS).toFixed(1);
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -974,10 +975,13 @@ def create_evaluation_html(generated_pairs):
         # Create evaluation data for this setting
         evaluation_data = {str(target_frames): generated_pairs[target_frames]}
         
-        # Replace placeholder with actual data
+        # Replace placeholders with actual data
         html_content = html_template.replace(
             '{evaluation_data_placeholder}', 
             json.dumps(evaluation_data, indent=2)
+        ).replace(
+            '{fps_placeholder}',
+            str(FPS)
         )
         
         # Save HTML file
@@ -991,6 +995,9 @@ def create_evaluation_html(generated_pairs):
     html_content = html_template.replace(
         '{evaluation_data_placeholder}', 
         json.dumps({str(k): v for k, v in generated_pairs.items()}, indent=2)
+    ).replace(
+        '{fps_placeholder}',
+        str(FPS)
     )
     
     combined_html_path = os.path.join(OUTPUT_DIR, "evaluation_all_settings.html")
