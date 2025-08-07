@@ -1038,12 +1038,15 @@ def create_evaluation_html(generated_pairs):
 </html>"""
     
     # Create HTML files for each setting
-    for target_frames in generated_pairs.keys():
+    for setting_key in generated_pairs.keys():
+        # Parse setting key: "frames_cropkey"
+        frames_str, crop_key = setting_key.split('_')
+        target_frames = int(frames_str)
         duration = target_frames / FPS
-        pairs_dir = os.path.join(OUTPUT_DIR, f"{target_frames}frames_{duration}s")
+        pairs_dir = os.path.join(OUTPUT_DIR, f"{frames_str}frames_{duration}s_{crop_key}")
         
         # Create evaluation data for this setting
-        evaluation_data = {str(target_frames): generated_pairs[target_frames]}
+        evaluation_data = {setting_key: generated_pairs[setting_key]}
         
         # Replace placeholders with actual data
         html_content = html_template.replace(
