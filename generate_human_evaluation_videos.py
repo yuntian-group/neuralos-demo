@@ -465,6 +465,12 @@ def main():
     # Filter for suitable sessions
     suitable_sessions = filter_suitable_sessions(session_files)
     logger.info(f"Found {len(suitable_sessions)} suitable sessions (no resets, >192 frames)")
+
+    random.seed(42)
+    random.shuffle(suitable_sessions)
+    N = 2
+    if len(suitable_sessions) > N:
+        suitable_sessions = suitable_sessions[:N]
     
     # Print selected session names
     print("\nSelected sessions:")
