@@ -470,9 +470,14 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
     available_sessions = len(sessions_shuffled)
     
     if total_needed > available_sessions:
+        new_pairs_per_length = available_sessions // len(TARGET_FRAME_COUNTS)
+        if new_pairs_per_length == 0:
+            logger.error(f"Need {total_needed} sessions but only have {available_sessions}. "
+                        f"Not enough sessions to generate any pairs. Need at least {len(TARGET_FRAME_COUNTS)} sessions.")
+            return {}
         logger.warning(f"Need {total_needed} sessions but only have {available_sessions}. "
-                      f"Reducing pairs per length to {available_sessions // len(TARGET_FRAME_COUNTS)}")
-        num_pairs_per_length = available_sessions // len(TARGET_FRAME_COUNTS)
+                      f"Reducing pairs per length to {new_pairs_per_length}")
+        num_pairs_per_length = new_pairs_per_length
     
     logger.info(f"Using non-overlapping slices: {num_pairs_per_length} pairs per frame count")
     
@@ -1051,9 +1056,10 @@ def main():
 
     random.seed(42)
     random.shuffle(suitable_sessions)
-    N = 2
-    if len(suitable_sessions) > N:
-        suitable_sessions = suitable_sessions[:N]
+    # Remove the artificial limit - use all suitable sessions
+    # N = 2
+    # if len(suitable_sessions) > N:
+    #     suitable_sessions = suitable_sessions[:N]
     
     # Print selected session names
     print("\nSelected sessions:")
