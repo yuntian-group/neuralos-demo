@@ -17,6 +17,7 @@ import cv2
 import numpy as np
 import logging
 import time
+import random
 from datetime import datetime
 from typing import List, Dict, Tuple
 import subprocess
