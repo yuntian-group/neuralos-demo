@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Constants
 FRAMES_DIR = "interaction_logs"
 OUTPUT_DIR = "human_evaluation_videos"
-DEMO_FRAMES_PREFIX = "frames_1749405369_1"  # As specified for demo-generated video
+# DEMO_FRAMES_PREFIX will be determined from session data
 TARGET_FRAME_COUNTS = [24, 48, 96, 192]  # 1.6s, 3.2s, 6.4s, 12.8s at 15fps
 FPS = 15
 MAX_SESSIONS = 1000
@@ -131,8 +131,8 @@ def filter_suitable_sessions(session_files):
 def create_demo_video(session_id, output_path, target_frames):
     """Create demo video from frames in the demo frames directory"""
     try:
-        # Use the specified demo frames directory
-        demo_frame_dir = os.path.join(FRAMES_DIR, DEMO_FRAMES_PREFIX)
+        # Use the session's own frames directory for demo video
+        demo_frame_dir = os.path.join(FRAMES_DIR, f"frames_{session_id}")
         if not os.path.exists(demo_frame_dir):
             logger.error(f"Demo frame directory {demo_frame_dir} not found")
             return False
