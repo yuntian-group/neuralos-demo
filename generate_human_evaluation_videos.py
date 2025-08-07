@@ -157,7 +157,7 @@ def create_demo_video(session_id, output_path, target_frames):
         height, width, _ = first_frame.shape
         
         # Create video writer with H.264 codec for better browser compatibility
-        fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # H.264 codec
         video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
         
         # Write frames to video
@@ -235,7 +235,7 @@ def create_real_video(session_id, session_file, output_path, target_frames):
                 duration = video.duration
                 
                 # Create video writer for output with H.264 codec
-                fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # H.264 codec
                 video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (512, 384))
                 
                 # Extract and write frames up to target_frames
@@ -311,7 +311,7 @@ def create_real_video_fallback(session_id, output_path, target_frames):
         height, width, _ = first_frame.shape
         
         # Create video writer with H.264 codec for better browser compatibility
-        fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # H.264 codec
         video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
         
         # Write frames to video
