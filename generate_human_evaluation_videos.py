@@ -436,11 +436,17 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
             real_success = create_real_video(session_id, session_file, real_video_path, target_frames)
             
             if demo_success and real_success:
+                # Randomize which video appears on left vs right
+                left_is_real = random.choice([True, False])
+                
                 pairs.append({
                     'pair_id': i + 1,
                     'session_id': session_id,
                     'demo_video': f"pair_{i+1:03d}_demo.mp4",
                     'real_video': f"pair_{i+1:03d}_real.mp4",
+                    'left_is_real': left_is_real,  # True if real video is on left, False if demo is on left
+                    'left_video': f"pair_{i+1:03d}_real.mp4" if left_is_real else f"pair_{i+1:03d}_demo.mp4",
+                    'right_video': f"pair_{i+1:03d}_demo.mp4" if left_is_real else f"pair_{i+1:03d}_real.mp4",
                 })
             else:
                 logger.warning(f"Failed to create videos for pair {i+1}")
@@ -449,6 +455,489 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
         logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s)")
     
     return generated_pairs
+
+def create_evaluation_html(generated_pairs):
+    """Create HTML evaluation interface for all video pairs"""
+    
+    html_template = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralOS Human Evaluation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .evaluation-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .video-pair {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+        
+        .video-container {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .video-container video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .selection-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            gap: 20px;
+        }
+        
+        .select-btn {
+            flex: 1;
+            max-width: 400px;
+            padding: 15px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .select-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .select-btn.selected {
+            background-color: #28a745;
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .nav-btn:hover {
+            background-color: #5a6268;
+        }
+        
+        .nav-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .progress {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .setting-selector {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .setting-selector select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .results-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .results-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .submit-btn {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .submit-btn:hover {
+            background-color: #c82333;
+        }
+        
+        .instructions {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NeuralOS Human Evaluation</h1>
+        <p>Help us evaluate the quality of NeuralOS by identifying which video shows a real operating system.</p>
+    </div>
+    
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <ul>
+            <li>You will see pairs of videos showing computer interactions</li>
+            <li>One video shows a real operating system, the other shows NeuralOS (AI-generated)</li>
+            <li>Watch both videos and click "This is Real OS" under the video you think shows the real operating system</li>
+            <li>Use the navigation buttons to move between examples</li>
+            <li>Complete all examples in each setting to see your accuracy results</li>
+        </ul>
+    </div>
+    
+    <div class="setting-selector">
+        <label for="settingSelect">Video Length Setting:</label>
+        <select id="settingSelect" onchange="changeSetting()">
+            <!-- Options will be populated by JavaScript -->
+        </select>
+    </div>
+    
+    <div class="evaluation-container">
+        <div class="progress">
+            <span id="progressText">Example 1 of 1</span>
+        </div>
+        
+        <div class="video-pair">
+            <div class="video-container">
+                <h3>Video A</h3>
+                <video id="videoLeft" controls>
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-container">
+                <h3>Video B</h3>
+                <video id="videoRight" controls>
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+        
+        <div class="selection-buttons">
+            <button class="select-btn" id="selectLeft" onclick="selectVideo('left')">
+                This is Real OS
+            </button>
+            <button class="select-btn" id="selectRight" onclick="selectVideo('right')">
+                This is Real OS
+            </button>
+        </div>
+        
+        <div class="navigation">
+            <button class="nav-btn" id="prevBtn" onclick="previousExample()">Previous</button>
+            <button class="submit-btn" id="submitBtn" onclick="submitResults()" style="display: none;">
+                Submit Results
+            </button>
+            <button class="nav-btn" id="nextBtn" onclick="nextExample()">Next</button>
+        </div>
+    </div>
+    
+    <div class="results-container" id="resultsContainer">
+        <h2>Evaluation Results</h2>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Video Length</th>
+                    <th>Duration</th>
+                    <th>Correct Identifications</th>
+                    <th>Total Examples</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+                <!-- Results will be populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Data from server - will be populated
+        const evaluationData = {evaluation_data_placeholder};
+        
+        let currentSetting = null;
+        let currentExample = 0;
+        let responses = {};
+        
+        // Initialize the evaluation
+        function initializeEvaluation() {
+            // Populate setting selector
+            const settingSelect = document.getElementById('settingSelect');
+            const settings = Object.keys(evaluationData).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            settings.forEach(setting => {
+                const option = document.createElement('option');
+                option.value = setting;
+                const frames = parseInt(setting);
+                const duration = (frames / 15).toFixed(1);
+                option.textContent = `${frames} frames (${duration}s)`;
+                settingSelect.appendChild(option);
+            });
+            
+            // Initialize responses object
+            settings.forEach(setting => {
+                responses[setting] = {};
+            });
+            
+            if (settings.length > 0) {
+                currentSetting = settings[0];
+                settingSelect.value = currentSetting;
+                loadCurrentExample();
+            }
+        }
+        
+        function changeSetting() {
+            const settingSelect = document.getElementById('settingSelect');
+            currentSetting = settingSelect.value;
+            currentExample = 0;
+            loadCurrentExample();
+        }
+        
+        function loadCurrentExample() {
+            if (!currentSetting || !evaluationData[currentSetting]) return;
+            
+            const examples = evaluationData[currentSetting];
+            const example = examples[currentExample];
+            
+            if (!example) return;
+            
+            // Update progress
+            document.getElementById('progressText').textContent = 
+                `Example ${currentExample + 1} of ${examples.length}`;
+            
+            // Load videos
+            const videoLeft = document.getElementById('videoLeft');
+            const videoRight = document.getElementById('videoRight');
+            
+            videoLeft.src = `${currentSetting}frames_${(parseInt(currentSetting)/15).toFixed(1)}s/${example.left_video}`;
+            videoRight.src = `${currentSetting}frames_${(parseInt(currentSetting)/15).toFixed(1)}s/${example.right_video}`;
+            
+            // Reset selection buttons
+            document.getElementById('selectLeft').classList.remove('selected');
+            document.getElementById('selectRight').classList.remove('selected');
+            
+            // Update button states based on existing response
+            const existingResponse = responses[currentSetting][example.pair_id];
+            if (existingResponse !== undefined) {
+                if (existingResponse === 'left') {
+                    document.getElementById('selectLeft').classList.add('selected');
+                } else if (existingResponse === 'right') {
+                    document.getElementById('selectRight').classList.add('selected');
+                }
+            }
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentExample === 0;
+            document.getElementById('nextBtn').disabled = currentExample === examples.length - 1;
+            
+            // Show submit button if this is the last example and all examples are completed
+            const allCompleted = examples.every(ex => responses[currentSetting][ex.pair_id] !== undefined);
+            const isLastExample = currentExample === examples.length - 1;
+            document.getElementById('submitBtn').style.display = 
+                (isLastExample && allCompleted) ? 'block' : 'none';
+        }
+        
+        function selectVideo(side) {
+            if (!currentSetting || !evaluationData[currentSetting]) return;
+            
+            const example = evaluationData[currentSetting][currentExample];
+            responses[currentSetting][example.pair_id] = side;
+            
+            // Update button appearance
+            document.getElementById('selectLeft').classList.remove('selected');
+            document.getElementById('selectRight').classList.remove('selected');
+            
+            if (side === 'left') {
+                document.getElementById('selectLeft').classList.add('selected');
+            } else {
+                document.getElementById('selectRight').classList.add('selected');
+            }
+            
+            // Check if this was the last unanswered question in current setting
+            const examples = evaluationData[currentSetting];
+            const allCompleted = examples.every(ex => responses[currentSetting][ex.pair_id] !== undefined);
+            const isLastExample = currentExample === examples.length - 1;
+            
+            if (isLastExample && allCompleted) {
+                document.getElementById('submitBtn').style.display = 'block';
+            }
+        }
+        
+        function previousExample() {
+            if (currentExample > 0) {
+                currentExample--;
+                loadCurrentExample();
+            }
+        }
+        
+        function nextExample() {
+            if (!currentSetting || !evaluationData[currentSetting]) return;
+            
+            const examples = evaluationData[currentSetting];
+            if (currentExample < examples.length - 1) {
+                currentExample++;
+                loadCurrentExample();
+            }
+        }
+        
+        function submitResults() {
+            // Calculate results for each setting
+            const resultsTableBody = document.getElementById('resultsTableBody');
+            resultsTableBody.innerHTML = '';
+            
+            const settings = Object.keys(evaluationData).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            settings.forEach(setting => {
+                const examples = evaluationData[setting];
+                const userResponses = responses[setting];
+                
+                let correct = 0;
+                let total = 0;
+                
+                examples.forEach(example => {
+                    const userChoice = userResponses[example.pair_id];
+                    if (userChoice !== undefined) {
+                        total++;
+                        
+                        // Check if user was correct
+                        const userChoseLeft = userChoice === 'left';
+                        const leftWasReal = example.left_is_real;
+                        
+                        if (userChoseLeft === leftWasReal) {
+                            correct++;
+                        }
+                    }
+                });
+                
+                const accuracy = total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0';
+                const frames = parseInt(setting);
+                const duration = (frames / 15).toFixed(1);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${frames} frames</td>
+                    <td>${duration}s</td>
+                    <td>${correct}</td>
+                    <td>${total}</td>
+                    <td>${accuracy}%</td>
+                `;
+                resultsTableBody.appendChild(row);
+            });
+            
+            // Show results
+            document.getElementById('resultsContainer').style.display = 'block';
+            
+            // Scroll to results
+            document.getElementById('resultsContainer').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        }
+        
+        // Initialize when page loads
+        window.onload = initializeEvaluation;
+    </script>
+</body>
+</html>"""
+    
+    # Create HTML files for each setting
+    for target_frames in generated_pairs.keys():
+        duration = target_frames / FPS
+        pairs_dir = os.path.join(OUTPUT_DIR, f"{target_frames}frames_{duration}s")
+        
+        # Create evaluation data for this setting
+        evaluation_data = {str(target_frames): generated_pairs[target_frames]}
+        
+        # Replace placeholder with actual data
+        html_content = html_template.replace(
+            '{evaluation_data_placeholder}', 
+            json.dumps(evaluation_data, indent=2)
+        )
+        
+        # Save HTML file
+        html_path = os.path.join(pairs_dir, "evaluation.html")
+        with open(html_path, 'w') as f:
+            f.write(html_content)
+        
+        logger.info(f"Created evaluation HTML: {html_path}")
+    
+    # Create a combined HTML file with all settings
+    html_content = html_template.replace(
+        '{evaluation_data_placeholder}', 
+        json.dumps({str(k): v for k, v in generated_pairs.items()}, indent=2)
+    )
+    
+    combined_html_path = os.path.join(OUTPUT_DIR, "evaluation_all_settings.html")
+    with open(combined_html_path, 'w') as f:
+        f.write(html_content)
+    
+    logger.info(f"Created combined evaluation HTML: {combined_html_path}")
+    
+    return combined_html_path
 
 def main():
     """Main function to generate evaluation videos"""
@@ -485,6 +974,9 @@ def main():
     # Generate video pairs
     generated_pairs = generate_video_pairs(suitable_sessions)
     
+    # Create HTML evaluation interfaces
+    html_path = create_evaluation_html(generated_pairs)
+    
     # Save metadata about generated pairs
     metadata = {
         'generation_time': datetime.now().isoformat(),
@@ -493,7 +985,8 @@ def main():
         'target_frame_counts': TARGET_FRAME_COUNTS,
         'fps': FPS,
         'demo_frames_source': DEMO_FRAMES_PREFIX,
-        'pairs_generated': generated_pairs
+        'pairs_generated': generated_pairs,
+        'evaluation_html': html_path
     }
     
     metadata_path = os.path.join(OUTPUT_DIR, "generation_metadata.json")
@@ -502,6 +995,8 @@ def main():
     
     logger.info(f"Video generation complete. Results saved to {OUTPUT_DIR}")
     logger.info(f"Metadata saved to {metadata_path}")
+    logger.info(f"Main evaluation interface: {html_path}")
+    logger.info("Open the HTML file in a web browser to start the human evaluation.")
 
 if __name__ == "__main__":
     main() 
