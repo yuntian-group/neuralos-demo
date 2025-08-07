@@ -44,7 +44,7 @@ FPS = 1.8
 TARGET_VIDEO_LENGTHS = [10, 20, 30, 40, 50, 60]  # 1.6s, 3.2s, 6.4s, 12.8s, 25.6s, 51.2s, 102.4s at 1.8fps
 TARGET_FRAME_COUNTS = [int(math.ceil(length * FPS)) for length in TARGET_VIDEO_LENGTHS]
 
-MAX_SESSIONS = 1000
+MAX_SESSIONS = 10000
 MIN_FRAME_COUNT = 192
 
 def extract_timestamp_from_session(session_file):
@@ -454,14 +454,27 @@ def format_trajectory_for_processing(trajectory):
     
     return formatted_events
 
-def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
-    """Generate video pairs for each target frame count using different subsets"""
+def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
+    """Generate video pairs for each target frame count using non-overlapping slices"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     generated_pairs = {}
     
-    # Create different random subsets for each frame count to prevent overfitting
-    random.seed(42)  # Ensure reproducibility
+    # Shuffle sessions once at the beginning for randomness, but ensure reproducibility
+    random.seed(42)
+    sessions_shuffled = suitable_sessions.copy()
+    random.shuffle(sessions_shuffled)
+    
+    # Calculate total sessions needed
+    total_needed = len(TARGET_FRAME_COUNTS) * num_pairs_per_length
+    available_sessions = len(sessions_shuffled)
+    
+    if total_needed > available_sessions:
+        logger.warning(f"Need {total_needed} sessions but only have {available_sessions}. "
+                      f"Reducing pairs per length to {available_sessions // len(TARGET_FRAME_COUNTS)}")
+        num_pairs_per_length = available_sessions // len(TARGET_FRAME_COUNTS)
+    
+    logger.info(f"Using non-overlapping slices: {num_pairs_per_length} pairs per frame count")
     
     for i, target_frames in enumerate(TARGET_FRAME_COUNTS):
         duration = target_frames / FPS
@@ -470,22 +483,15 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
         
         pairs = []
         
-        # Use a different subset of sessions for each frame count
-        # This prevents overfitting and gives more robust evaluation
-        subset_seed = 42 + i * 100  # Different seed for each frame count
-        random.seed(subset_seed)
+        # Use non-overlapping slices for each frame count
+        start_idx = i * num_pairs_per_length
+        end_idx = start_idx + num_pairs_per_length
+        session_slice = sessions_shuffled[start_idx:end_idx]
         
-        # Shuffle and select a subset
-        sessions_copy = suitable_sessions.copy()
-        random.shuffle(sessions_copy)
+        logger.info(f"Frame count {target_frames}: using sessions {start_idx} to {end_idx-1} "
+                   f"({len(session_slice)} sessions)")
         
-        # Generate pairs up to the number requested or available sessions
-        max_pairs = min(num_pairs_per_length, len(sessions_copy))
-        
-        logger.info(f"Using sessions subset with seed {subset_seed} for {target_frames} frames")
-        
-        for j in range(max_pairs):
-            session = sessions_copy[j]
+        for j, session in enumerate(session_slice):
             session_id = session['session_id']
             session_file = session['session_file']
             
@@ -567,6 +573,19 @@ def create_evaluation_html(generated_pairs):
             height: auto;
             border: 2px solid #ddd;
             border-radius: 5px;
+            /* Crop bottom to hide telltale signs like free space indicator */
+            object-fit: cover;
+            object-position: top;
+            /* Adjust this value to crop more/less from bottom */
+            aspect-ratio: 4/3;
+            max-height: 300px;
+        }
+        
+        .video-wrapper {
+            overflow: hidden;
+            border-radius: 5px;
+            max-width: 400px;
+            margin: 0 auto;
         }
         
         .selection-buttons {
@@ -710,6 +729,7 @@ def create_evaluation_html(generated_pairs):
             <li>Watch both videos and click "This is Real OS" under the video you think shows the real operating system</li>
             <li>Use the navigation buttons to move between examples</li>
             <li>Complete all examples in each setting to see your accuracy results</li>
+            <li><em>Note: Videos are cropped to hide UI elements that might give away the answer</em></li>
         </ul>
     </div>
     
@@ -728,17 +748,21 @@ def create_evaluation_html(generated_pairs):
         <div class="video-pair">
             <div class="video-container">
                 <h3>Video A</h3>
-                <video id="videoLeft" controls>
-                    <source src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+                <div class="video-wrapper">
+                    <video id="videoLeft" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
             </div>
             <div class="video-container">
                 <h3>Video B</h3>
-                <video id="videoRight" controls>
-                    <source src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+                <div class="video-wrapper">
+                    <video id="videoRight" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
             </div>
         </div>
         
