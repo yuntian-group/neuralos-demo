@@ -1028,7 +1028,7 @@ def main():
         'suitable_sessions_found': len(suitable_sessions),
         'target_frame_counts': TARGET_FRAME_COUNTS,
         'fps': FPS,
-        'demo_frames_source': DEMO_FRAMES_PREFIX,
+        'demo_frames_source': 'frames_{session_id} (inferred from session)',
         'pairs_generated': generated_pairs,
         'evaluation_html': html_path
     }
