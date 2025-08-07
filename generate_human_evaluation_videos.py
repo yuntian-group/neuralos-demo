@@ -156,8 +156,8 @@ def create_demo_video(session_id, output_path, target_frames):
         
         height, width, _ = first_frame.shape
         
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # Create video writer with H.264 codec for better browser compatibility
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
         video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
         
         # Write frames to video
@@ -167,6 +167,12 @@ def create_demo_video(session_id, output_path, target_frames):
                 video_writer.write(frame)
         
         video_writer.release()
+        
+        # Re-encode for browser compatibility
+        temp_path = output_path + ".temp.mp4"
+        if reencode_video_for_browser(output_path, temp_path):
+            os.rename(temp_path, output_path)
+        
         logger.info(f"Created demo video: {output_path}")
         return True
         
@@ -228,8 +234,8 @@ def create_real_video(session_id, session_file, output_path, target_frames):
                 fps = video.fps
                 duration = video.duration
                 
-                # Create video writer for output
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                # Create video writer for output with H.264 codec
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
                 video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (512, 384))
                 
                 # Extract and write frames up to target_frames
@@ -242,6 +248,11 @@ def create_real_video(session_id, session_file, output_path, target_frames):
                     frames_written += 1
                 
                 video_writer.release()
+                
+                # Re-encode for browser compatibility
+                temp_path = output_path + ".temp.mp4"
+                if reencode_video_for_browser(output_path, temp_path):
+                    os.rename(temp_path, output_path)
             
             # Clean up generated files
             try:
@@ -299,8 +310,8 @@ def create_real_video_fallback(session_id, output_path, target_frames):
         
         height, width, _ = first_frame.shape
         
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # Create video writer with H.264 codec for better browser compatibility
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
         video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
         
         # Write frames to video
@@ -310,11 +321,44 @@ def create_real_video_fallback(session_id, output_path, target_frames):
                 video_writer.write(frame)
         
         video_writer.release()
+        
+        # Re-encode for browser compatibility
+        temp_path = output_path + ".temp.mp4"
+        if reencode_video_for_browser(output_path, temp_path):
+            os.rename(temp_path, output_path)
+        
         logger.info(f"Created fallback real video: {output_path}")
         return True
         
     except Exception as e:
         logger.error(f"Error creating fallback real video: {e}")
+        return False
+
+def reencode_video_for_browser(input_path, output_path):
+    """Re-encode video using ffmpeg for better browser compatibility"""
+    try:
+        cmd = [
+            'ffmpeg', '-y',  # -y to overwrite output file
+            '-i', input_path,
+            '-c:v', 'libx264',  # H.264 codec
+            '-profile:v', 'baseline',  # Baseline profile for compatibility
+            '-level', '3.0',
+            '-pix_fmt', 'yuv420p',  # Compatible pixel format
+            '-movflags', '+faststart',  # Enable fast start for web
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            # Remove original file and rename the new one
+            os.remove(input_path)
+            logger.info(f"Re-encoded video for browser compatibility: {output_path}")
+            return True
+        else:
+            logger.error(f"ffmpeg failed: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"Error re-encoding video: {e}")
         return False
 
 def format_trajectory_for_processing(trajectory):
