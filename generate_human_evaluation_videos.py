@@ -40,8 +40,8 @@ logger = logging.getLogger(__name__)
 FRAMES_DIR = "interaction_logs"
 OUTPUT_DIR = "human_evaluation_videos"
 # DEMO_FRAMES_PREFIX will be determined from session data
-FPS = 1.8
-TARGET_VIDEO_LENGTHS = [1.6, 3.2, 6.4, 12.8, 25.6, 51.2, 102.4]  # 1.6s, 3.2s, 6.4s, 12.8s, 25.6s, 51.2s, 102.4s at 1.8fps
+FPS = 2
+TARGET_VIDEO_LENGTHS = [10, 20, 30, 40, 50, 60]  # 1.6s, 3.2s, 6.4s, 12.8s, 25.6s, 51.2s, 102.4s at 1.8fps
 TARGET_FRAME_COUNTS = [int(math.ceil(length * FPS)) for length in TARGET_VIDEO_LENGTHS]
 
 MAX_SESSIONS = 1000
