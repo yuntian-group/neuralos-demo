@@ -47,6 +47,18 @@ TARGET_FRAME_COUNTS = [int(math.ceil(length * FPS)) for length in TARGET_VIDEO_L
 MAX_SESSIONS = 10000
 MIN_FRAME_COUNT = 192
 
+# Video cropping settings - two different crop levels for comparison
+CROP_SETTINGS = {
+    'cropped': {
+        'max_height': 354,  # Crops 30px from bottom (384-354=30)
+        'name': 'Cropped'
+    },
+    'uncropped': {
+        'max_height': 384,  # No cropping (shows full video)
+        'name': 'Uncropped'
+    }
+}
+
 def extract_timestamp_from_session(session_file):
     """Extract timestamp from session filename like session_1754504816_907.jsonl"""
     try:
@@ -455,7 +467,7 @@ def format_trajectory_for_processing(trajectory):
     return formatted_events
 
 def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
-    """Generate video pairs for each target frame count using non-overlapping slices"""
+    """Generate video pairs for each target frame count and crop setting using non-overlapping slices"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     generated_pairs = {}
@@ -465,38 +477,42 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
     sessions_shuffled = suitable_sessions.copy()
     random.shuffle(sessions_shuffled)
     
-    # Calculate total sessions needed
-    total_needed = len(TARGET_FRAME_COUNTS) * num_pairs_per_length
+    # Calculate total sessions needed for both crop settings
+    total_needed = len(TARGET_FRAME_COUNTS) * len(CROP_SETTINGS) * num_pairs_per_length
     available_sessions = len(sessions_shuffled)
     
     if total_needed > available_sessions:
-        new_pairs_per_length = available_sessions // len(TARGET_FRAME_COUNTS)
+        new_pairs_per_length = available_sessions // (len(TARGET_FRAME_COUNTS) * len(CROP_SETTINGS))
         if new_pairs_per_length == 0:
             logger.error(f"Need {total_needed} sessions but only have {available_sessions}. "
-                        f"Not enough sessions to generate any pairs. Need at least {len(TARGET_FRAME_COUNTS)} sessions.")
+                        f"Not enough sessions to generate any pairs. Need at least {len(TARGET_FRAME_COUNTS) * len(CROP_SETTINGS)} sessions.")
             return {}
         logger.warning(f"Need {total_needed} sessions but only have {available_sessions}. "
                       f"Reducing pairs per length to {new_pairs_per_length}")
         num_pairs_per_length = new_pairs_per_length
     
-    logger.info(f"Using non-overlapping slices: {num_pairs_per_length} pairs per frame count")
+    logger.info(f"Using non-overlapping slices: {num_pairs_per_length} pairs per frame count per crop setting")
     
-    for i, target_frames in enumerate(TARGET_FRAME_COUNTS):
-        duration = target_frames / FPS
-        pairs_dir = os.path.join(OUTPUT_DIR, f"{target_frames}frames_{duration}s")
-        os.makedirs(pairs_dir, exist_ok=True)
-        
-        pairs = []
-        
-        # Use non-overlapping slices for each frame count
-        start_idx = i * num_pairs_per_length
-        end_idx = start_idx + num_pairs_per_length
-        session_slice = sessions_shuffled[start_idx:end_idx]
-        
-        logger.info(f"Frame count {target_frames}: using sessions {start_idx} to {end_idx-1} "
-                   f"({len(session_slice)} sessions)")
-        
-        for j, session in enumerate(session_slice):
+    session_idx = 0  # Track session index across all combinations
+    
+    for crop_key, crop_config in CROP_SETTINGS.items():
+        for i, target_frames in enumerate(TARGET_FRAME_COUNTS):
+            duration = target_frames / FPS
+            pairs_dir = os.path.join(OUTPUT_DIR, f"{target_frames}frames_{duration}s_{crop_key}")
+            os.makedirs(pairs_dir, exist_ok=True)
+            
+            pairs = []
+            
+            # Use non-overlapping slices for each combination
+            start_idx = session_idx
+            end_idx = start_idx + num_pairs_per_length
+            session_slice = sessions_shuffled[start_idx:end_idx]
+            session_idx = end_idx  # Update for next combination
+            
+            logger.info(f"Frame count {target_frames} ({crop_config['name']}): using sessions {start_idx} to {end_idx-1} "
+                       f"({len(session_slice)} sessions)")
+            
+            for j, session in enumerate(session_slice):
             session_id = session['session_id']
             session_file = session['session_file']
             
@@ -520,12 +536,16 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
                     'left_is_real': left_is_real,  # True if real video is on left, False if demo is on left
                     'left_video': f"pair_{j+1:03d}_real.mp4" if left_is_real else f"pair_{j+1:03d}_demo.mp4",
                     'right_video': f"pair_{j+1:03d}_demo.mp4" if left_is_real else f"pair_{j+1:03d}_real.mp4",
+                    'crop_setting': crop_key,
+                    'max_height': crop_config['max_height'],
                 })
             else:
                 logger.warning(f"Failed to create videos for pair {j+1}")
         
-        generated_pairs[target_frames] = pairs
-        logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s)")
+        # Store with combined key
+        key = f"{target_frames}_{crop_key}"
+        generated_pairs[key] = pairs
+        logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s) - {crop_config['name']}")
     
     return generated_pairs
 
@@ -574,7 +594,7 @@ def create_evaluation_html(generated_pairs):
         
         .video-container video {
             width: 100%;
-            max-width: 400px;
+            max-width: 512px;    /* Match original video width */
             height: auto;
             border: 2px solid #ddd;
             border-radius: 5px;
@@ -582,14 +602,13 @@ def create_evaluation_html(generated_pairs):
             object-fit: cover;
             object-position: top;
             /* Adjust this value to crop more/less from bottom */
-            aspect-ratio: 4/3;
-            max-height: 300px;
+            max-height: 364px;   /* Crops 84px from bottom (384-300=84) */
         }
         
         .video-wrapper {
             overflow: hidden;
             border-radius: 5px;
-            max-width: 400px;
+            max-width: 512px;
             margin: 0 auto;
         }
         
@@ -796,6 +815,7 @@ def create_evaluation_html(generated_pairs):
                 <tr>
                     <th>Video Length</th>
                     <th>Duration</th>
+                    <th>Crop Setting</th>
                     <th>Correct Identifications</th>
                     <th>Total Examples</th>
                     <th>Accuracy</th>
@@ -811,6 +831,7 @@ def create_evaluation_html(generated_pairs):
         // Data from server - will be populated
         const evaluationData = {evaluation_data_placeholder};
         const FPS = {fps_placeholder};
+        const CROP_SETTINGS = {crop_settings_placeholder};
         
         let currentSetting = null;
         let currentExample = 0;
@@ -825,9 +846,14 @@ def create_evaluation_html(generated_pairs):
             settings.forEach(setting => {
                 const option = document.createElement('option');
                 option.value = setting;
-                const frames = parseInt(setting);
+                
+                // Parse setting key: "frames_cropkey"
+                const [framesStr, cropKey] = setting.split('_');
+                const frames = parseInt(framesStr);
                 const duration = (frames / FPS).toFixed(1);
-                option.textContent = `${frames} frames (${duration}s)`;
+                const cropName = CROP_SETTINGS[cropKey] ? CROP_SETTINGS[cropKey].name : cropKey;
+                
+                option.textContent = `${frames} frames (${duration}s) - ${cropName}`;
                 settingSelect.appendChild(option);
             });
             
@@ -866,8 +892,18 @@ def create_evaluation_html(generated_pairs):
             const videoLeft = document.getElementById('videoLeft');
             const videoRight = document.getElementById('videoRight');
             
-            videoLeft.src = `${currentSetting}frames_${(parseInt(currentSetting)/FPS).toFixed(1)}s/${example.left_video}`;
-            videoRight.src = `${currentSetting}frames_${(parseInt(currentSetting)/FPS).toFixed(1)}s/${example.right_video}`;
+            // Parse setting to get directory name
+            const [framesStr, cropKey] = currentSetting.split('_');
+            const duration = (parseInt(framesStr) / FPS).toFixed(1);
+            const dirName = `${framesStr}frames_${duration}s_${cropKey}`;
+            
+            videoLeft.src = `${dirName}/${example.left_video}`;
+            videoRight.src = `${dirName}/${example.right_video}`;
+            
+            // Apply crop setting to videos
+            const maxHeight = example.max_height || 384;
+            videoLeft.style.maxHeight = `${maxHeight}px`;
+            videoRight.style.maxHeight = `${maxHeight}px`;
             
             // Reset selection buttons
             document.getElementById('selectLeft').classList.remove('selected');
@@ -967,13 +1003,18 @@ def create_evaluation_html(generated_pairs):
                 });
                 
                 const accuracy = total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0';
-                const frames = parseInt(setting);
+                
+                // Parse setting
+                const [framesStr, cropKey] = setting.split('_');
+                const frames = parseInt(framesStr);
                 const duration = (frames / FPS).toFixed(1);
+                const cropName = CROP_SETTINGS[cropKey] ? CROP_SETTINGS[cropKey].name : cropKey;
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${frames} frames</td>
                     <td>${duration}s</td>
+                    <td>${cropName}</td>
                     <td>${correct}</td>
                     <td>${total}</td>
                     <td>${accuracy}%</td>
@@ -1011,6 +1052,9 @@ def create_evaluation_html(generated_pairs):
         ).replace(
             '{fps_placeholder}',
             str(FPS)
+        ).replace(
+            '{crop_settings_placeholder}',
+            json.dumps(CROP_SETTINGS)
         )
         
         # Save HTML file
@@ -1027,6 +1071,9 @@ def create_evaluation_html(generated_pairs):
     ).replace(
         '{fps_placeholder}',
         str(FPS)
+    ).replace(
+        '{crop_settings_placeholder}',
+        json.dumps(CROP_SETTINGS)
     )
     
     combined_html_path = os.path.join(OUTPUT_DIR, "evaluation_all_settings.html")
