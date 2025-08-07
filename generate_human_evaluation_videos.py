@@ -513,39 +513,39 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=30):
                        f"({len(session_slice)} sessions)")
             
             for j, session in enumerate(session_slice):
-            session_id = session['session_id']
-            session_file = session['session_file']
-            
-            # Generate demo video
-            demo_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_demo.mp4")
-            demo_success = create_demo_video(session_id, demo_video_path, target_frames)
-            
-            # Generate real video  
-            real_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_real.mp4")
-            real_success = create_real_video(session_id, session_file, real_video_path, target_frames)
-            
-            if demo_success and real_success:
-                # Randomize which video appears on left vs right
-                left_is_real = random.choice([True, False])
+                session_id = session['session_id']
+                session_file = session['session_file']
                 
-                pairs.append({
-                    'pair_id': j + 1,
-                    'session_id': session_id,
-                    'demo_video': f"pair_{j+1:03d}_demo.mp4",
-                    'real_video': f"pair_{j+1:03d}_real.mp4",
-                    'left_is_real': left_is_real,  # True if real video is on left, False if demo is on left
-                    'left_video': f"pair_{j+1:03d}_real.mp4" if left_is_real else f"pair_{j+1:03d}_demo.mp4",
-                    'right_video': f"pair_{j+1:03d}_demo.mp4" if left_is_real else f"pair_{j+1:03d}_real.mp4",
-                    'crop_setting': crop_key,
-                    'max_height': crop_config['max_height'],
-                })
-            else:
-                logger.warning(f"Failed to create videos for pair {j+1}")
-        
-        # Store with combined key
-        key = f"{target_frames}_{crop_key}"
-        generated_pairs[key] = pairs
-        logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s) - {crop_config['name']}")
+                # Generate demo video
+                demo_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_demo.mp4")
+                demo_success = create_demo_video(session_id, demo_video_path, target_frames)
+                
+                # Generate real video  
+                real_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_real.mp4")
+                real_success = create_real_video(session_id, session_file, real_video_path, target_frames)
+                
+                if demo_success and real_success:
+                    # Randomize which video appears on left vs right
+                    left_is_real = random.choice([True, False])
+                    
+                    pairs.append({
+                        'pair_id': j + 1,
+                        'session_id': session_id,
+                        'demo_video': f"pair_{j+1:03d}_demo.mp4",
+                        'real_video': f"pair_{j+1:03d}_real.mp4",
+                        'left_is_real': left_is_real,  # True if real video is on left, False if demo is on left
+                        'left_video': f"pair_{j+1:03d}_real.mp4" if left_is_real else f"pair_{j+1:03d}_demo.mp4",
+                        'right_video': f"pair_{j+1:03d}_demo.mp4" if left_is_real else f"pair_{j+1:03d}_real.mp4",
+                        'crop_setting': crop_key,
+                        'max_height': crop_config['max_height'],
+                    })
+                else:
+                    logger.warning(f"Failed to create videos for pair {j+1}")
+            
+            # Store with combined key
+            key = f"{target_frames}_{crop_key}"
+            generated_pairs[key] = pairs
+            logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s) - {crop_config['name']}")
     
     return generated_pairs
 
