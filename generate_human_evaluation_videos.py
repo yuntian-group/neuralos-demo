@@ -18,6 +18,7 @@ import numpy as np
 import logging
 import time
 import random
+import math
 from datetime import datetime
 from typing import List, Dict, Tuple
 import subprocess
@@ -39,9 +40,12 @@ logger = logging.getLogger(__name__)
 FRAMES_DIR = "interaction_logs"
 OUTPUT_DIR = "human_evaluation_videos"
 # DEMO_FRAMES_PREFIX will be determined from session data
-TARGET_FRAME_COUNTS = [24, 48, 96, 192]  # 1.6s, 3.2s, 6.4s, 12.8s at 15fps
-FPS = 15
+FPS = 1.8
+TARGET_VIDEO_LENGTHS = [1.6, 3.2, 6.4, 12.8, 25.6, 51.2, 102.4]  # 1.6s, 3.2s, 6.4s, 12.8s, 25.6s, 51.2s, 102.4s at 1.8fps
+TARGET_FRAME_COUNTS = [int(math.ceil(length * FPS)) for length in TARGET_VIDEO_LENGTHS]
+
 MAX_SESSIONS = 1000
+MIN_FRAME_COUNT = 192
 
 def extract_timestamp_from_session(session_file):
     """Extract timestamp from session filename like session_1754504816_907.jsonl"""
@@ -112,7 +116,7 @@ def filter_suitable_sessions(session_files):
             
             # Check frame count
             frame_count = get_frame_count(session_id)
-            if frame_count < 192:
+            if frame_count < MIN_FRAME_COUNT:
                 continue
             
             suitable_sessions.append({
@@ -451,32 +455,46 @@ def format_trajectory_for_processing(trajectory):
     return formatted_events
 
 def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
-    """Generate video pairs for each target frame count"""
+    """Generate video pairs for each target frame count using different subsets"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     generated_pairs = {}
     
-    for target_frames in TARGET_FRAME_COUNTS:
+    # Create different random subsets for each frame count to prevent overfitting
+    random.seed(42)  # Ensure reproducibility
+    
+    for i, target_frames in enumerate(TARGET_FRAME_COUNTS):
         duration = target_frames / FPS
         pairs_dir = os.path.join(OUTPUT_DIR, f"{target_frames}frames_{duration}s")
         os.makedirs(pairs_dir, exist_ok=True)
         
         pairs = []
         
-        # Generate pairs up to the number requested or available sessions
-        max_pairs = min(num_pairs_per_length, len(suitable_sessions))
+        # Use a different subset of sessions for each frame count
+        # This prevents overfitting and gives more robust evaluation
+        subset_seed = 42 + i * 100  # Different seed for each frame count
+        random.seed(subset_seed)
         
-        for i in range(max_pairs):
-            session = suitable_sessions[i]
+        # Shuffle and select a subset
+        sessions_copy = suitable_sessions.copy()
+        random.shuffle(sessions_copy)
+        
+        # Generate pairs up to the number requested or available sessions
+        max_pairs = min(num_pairs_per_length, len(sessions_copy))
+        
+        logger.info(f"Using sessions subset with seed {subset_seed} for {target_frames} frames")
+        
+        for j in range(max_pairs):
+            session = sessions_copy[j]
             session_id = session['session_id']
             session_file = session['session_file']
             
             # Generate demo video
-            demo_video_path = os.path.join(pairs_dir, f"pair_{i+1:03d}_demo.mp4")
+            demo_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_demo.mp4")
             demo_success = create_demo_video(session_id, demo_video_path, target_frames)
             
             # Generate real video  
-            real_video_path = os.path.join(pairs_dir, f"pair_{i+1:03d}_real.mp4")
+            real_video_path = os.path.join(pairs_dir, f"pair_{j+1:03d}_real.mp4")
             real_success = create_real_video(session_id, session_file, real_video_path, target_frames)
             
             if demo_success and real_success:
@@ -484,16 +502,16 @@ def generate_video_pairs(suitable_sessions, num_pairs_per_length=20):
                 left_is_real = random.choice([True, False])
                 
                 pairs.append({
-                    'pair_id': i + 1,
+                    'pair_id': j + 1,
                     'session_id': session_id,
-                    'demo_video': f"pair_{i+1:03d}_demo.mp4",
-                    'real_video': f"pair_{i+1:03d}_real.mp4",
+                    'demo_video': f"pair_{j+1:03d}_demo.mp4",
+                    'real_video': f"pair_{j+1:03d}_real.mp4",
                     'left_is_real': left_is_real,  # True if real video is on left, False if demo is on left
-                    'left_video': f"pair_{i+1:03d}_real.mp4" if left_is_real else f"pair_{i+1:03d}_demo.mp4",
-                    'right_video': f"pair_{i+1:03d}_demo.mp4" if left_is_real else f"pair_{i+1:03d}_real.mp4",
+                    'left_video': f"pair_{j+1:03d}_real.mp4" if left_is_real else f"pair_{j+1:03d}_demo.mp4",
+                    'right_video': f"pair_{j+1:03d}_demo.mp4" if left_is_real else f"pair_{j+1:03d}_real.mp4",
                 })
             else:
-                logger.warning(f"Failed to create videos for pair {i+1}")
+                logger.warning(f"Failed to create videos for pair {j+1}")
         
         generated_pairs[target_frames] = pairs
         logger.info(f"Generated {len(pairs)} video pairs for {target_frames} frames ({duration}s)")
