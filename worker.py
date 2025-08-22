@@ -58,6 +58,9 @@ class GPUWorker:
         #self.MODEL_NAME = "yuntian-deng/computer-model-s-x0-onlineonly-222222k722222-42k"
         #self.MODEL_NAME = "yuntian-deng/computer-model-s-x0-onlineonly-222222k722222-60k"
         #self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k722n-16k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n2-180k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n222-046k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n22n-172k"
         
         # Initialize model
         self._initialize_model()
