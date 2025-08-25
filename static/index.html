@@ -91,11 +91,6 @@
         </div>
         
         <div class="canvas-container">
-            <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-bottom: 15px;">
-                <strong>Connection Timeout Warning:</strong> 
-                <span id="timeoutMessage">No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds and page will refresh automatically.</span>
-                <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
-            </div>
             
             <div class="canvas-wrapper">
                 <div class="instruction-box">Move your mouse inside to interact</div>
@@ -120,6 +115,11 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="autoInputToggle" checked>
                     <label class="form-check-label" for="autoInputToggle" id="autoInputLabel">Auto Input</label>
                 </div>
+            </div>
+            <div id="timeoutWarning" class="alert alert-warning" style="display: none; margin-bottom: 15px;">
+                <strong>Connection Timeout Warning:</strong> 
+                <span id="timeoutMessage">No user activity detected. Connection will be dropped in <span id="timeoutCountdown">10</span> seconds and page will refresh automatically.</span>
+                <button type="button" class="btn btn-sm btn-primary ms-2" onclick="resetTimeout()">Stay Connected</button>
             </div>
         </div>
         
