@@ -314,6 +314,7 @@ def main():
                     help="Sampling steps (DDIM or accelerated DDPM). Use >=1000 to run full DDPM chain.")
     ap.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu",
                     help="cuda or cpu")
+    ap.add_argument("--prefix", type=str, default='')
     ap.add_argument("--fps", type=int, default=15,
                     help="If >0, override FPS. Otherwise auto from median Δtimestamp.")
     ap.add_argument("--timesteps-full", type=int, default=TIMESTEPS_DEFAULT,
@@ -321,6 +322,9 @@ def main():
     args = ap.parse_args()
 
     device = torch.device(args.device)
+    if args.prefix == '2_074k':
+        print ('using newer model')
+        args.model_name = 'yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n2222-074k'
 
     # Prepare model
     model, stats, latent_dims, padding_latent = prepare_model(
@@ -350,7 +354,10 @@ def main():
 
         for csv_path in tqdm(csvs):
             base = os.path.splitext(os.path.basename(csv_path))[0]
-            out_path = os.path.join(out_dir, f'{args.sampler}_{args.steps}', f"{base}.mp4")
+            if args.prefix != '':
+                out_path = os.path.join(out_dir, f'{args.prefix}_{args.sampler}_{args.steps}', f"{base}.mp4")
+            else:
+                out_path = os.path.join(out_dir, f'{args.sampler}_{args.steps}', f"{base}.mp4")
             render_csv_to_mp4(
                 csv_path=csv_path,
                 out_path=out_path,
