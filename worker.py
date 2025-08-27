@@ -50,7 +50,7 @@ class GPUWorker:
         self.TIMESTEPS = 1000
         self.SCREEN_WIDTH = 512
         self.SCREEN_HEIGHT = 384
-        self.NUM_SAMPLING_STEPS = 32
+        self.NUM_SAMPLING_STEPS = 16
         self.USE_RNN = False
         
         self.MODEL_NAME = "yuntian-deng/computer-model-s-newnewd-freezernn-origunet-nospatial-online-x0-joint-onlineonly-222222k72-108k"
@@ -64,6 +64,7 @@ class GPUWorker:
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n22n-230k"
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n222-138k"
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n222-146k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n2222-074k"
         
         # Initialize model
         self._initialize_model()
@@ -285,7 +286,7 @@ class GPUWorker:
         self,
         inputs: Dict[str, torch.Tensor],
         use_rnn: bool = False,
-        num_sampling_steps: int = 32
+        num_sampling_steps: int = 16
     ) -> Tuple[torch.Tensor, np.ndarray, Any, Dict[str, float]]:
         """Process a single frame through the model"""
         # Run the heavy computation in a separate thread
@@ -520,7 +521,7 @@ class GPUWorker:
             return {"type": "reset_confirmed"}
         
         elif data.get("type") == "update_sampling_steps":
-            steps = data.get("steps", 32)
+            steps = data.get("steps", 16)
             if steps < 1:
                 return {"type": "error", "message": "Invalid sampling steps value"}
             session['client_settings']['sampling_steps'] = steps
