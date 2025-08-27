@@ -283,6 +283,8 @@ def main():
 
         split_curves: Dict[str, np.ndarray] = {}
         for setting in settings:
+            if 'ddim_4' in setting or 'ddim_8' in setting:
+                continue
             cum_mean, _ = accumulate_curves(
                 args.gen_root, args.gt_root, split, setting,
                 normalize_01=args.normalize01,
