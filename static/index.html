@@ -102,7 +102,7 @@
                 
                 <div class="step-control">
                     <label for="samplingSteps" class="form-label mb-0">Sampling Steps:</label>
-                    <input type="number" id="samplingSteps" class="form-control" min="1" max="100" value="16">
+                    <input type="number" id="samplingSteps" class="form-control" min="1" max="100" value="4">
                     <button id="updateStepsButton" class="btn btn-secondary control-button">Update</button>
                 </div>
                 
@@ -400,7 +400,8 @@
         let autoInputInterval = null;
         let autoInputActive = false; // Track if auto-input mode is active
         const INITIAL_AUTO_INPUT_DELAY = 2000; // Start auto-input after 2 seconds of no user input
-        const AUTO_INPUT_INTERVAL = 500; // Send auto-input every 0.5 second once active
+        //const AUTO_INPUT_INTERVAL = 500; // Send auto-input every 0.5 second once active
+        const AUTO_INPUT_INTERVAL = 80; // Send auto-input every 0.08 second once active
         let autoInputEnabled = true; // Default to enabled
         let userHasInteracted = false; // Track if user has moved mouse inside canvas
         

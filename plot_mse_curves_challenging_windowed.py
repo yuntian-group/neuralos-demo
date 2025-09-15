@@ -15,6 +15,8 @@ def filter_condition(setting):
     flag = False
     #if 'ddim_4' in setting:
     #    flag = True 
+    if 'bak' in setting:
+        flag = True
     if '_0' not in setting and 'distill' not in setting:
         flag = True 
     if 'n_' in setting:
