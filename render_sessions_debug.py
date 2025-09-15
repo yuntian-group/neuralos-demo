@@ -87,7 +87,6 @@ def prepare_model(
     latent_stats_path: str
 ):
     model = initialize_model(config, model_name).to(device)
-    model.eval()
     stats = load_latent_stats(latent_stats_path, device)
     latent_dims = (latent_channels, screen_h // 8, screen_w // 8)
 
@@ -139,7 +138,6 @@ def step_model(
     device: torch.device,
     sampler_type: str,
     steps: int,
-    ddim_discr_method: str,
     timesteps_full: int
 ):
     # Temporal encoder
@@ -171,9 +169,9 @@ def step_model(
             )
     else:  # 'ddim'
         sampler = DDIMSampler(model)
+        import pdb; pdb.set_trace()
         sample_latent, _ = sampler.sample(
             S=steps, conditioning={'c_concat': out_from_rnn},
-            ddim_discr_method=ddim_discr_method,
             batch_size=1, shape=latent_dims, verbose=False
         )
 
@@ -246,7 +244,6 @@ def render_csv_to_mp4(
     steps: int,
     timesteps_full: int,
     device: torch.device,
-    ddim_discr_method: str,
     fps_override: Optional[int] = None
 ):
     # Parse events
@@ -287,7 +284,7 @@ def render_csv_to_mp4(
             )
 
             prev_latent, hidden_states, frame_img = step_model(
-                model, inputs, latent_dims, stats, device, ddim_discr_method=ddim_discr_method,
+                model, inputs, latent_dims, stats, device,
                 sampler_type=sampler_type, steps=steps, timesteps_full=timesteps_full
             )
 
@@ -326,17 +323,12 @@ def main():
     args = ap.parse_args()
 
     device = torch.device(args.device)
-    ddim_discr_method = 'uniform'
     if args.prefix == '2_074k':
         print ('using newer model')
         args.model_name = 'yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n2222-074k'
     if args.prefix == 'n_046k':
         print ('using newer 1gpu model')
         args.model_name = 'yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n22nnn-046k'
-    if args.prefix == 'distill_8':
-        print ('using distill 8')
-        ddim_discr_method = 'progressivedistillation_64'
-        args.model_name = 'yuntian-deng/computer-model-distill-8'
 
     # Prepare model
     model, stats, latent_dims, padding_latent = prepare_model(
@@ -381,7 +373,6 @@ def main():
                 steps=args.steps,
                 timesteps_full=args.timesteps_full,
                 device=device,
-                ddim_discr_method=ddim_discr_method,
                 fps_override=args.fps
             )
 

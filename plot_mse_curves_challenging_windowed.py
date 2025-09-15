@@ -11,6 +11,30 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+def filter_condition(setting):
+    flag = False
+    #if 'ddim_4' in setting:
+    #    flag = True 
+    if '_0' not in setting and 'distill' not in setting:
+        flag = True 
+    if 'n_' in setting:
+        flag = True 
+    if '2_074k' not in setting:
+        flag = True 
+    #if 'tf' not in setting:
+    #    flag = True 
+    if 'tf' in setting:
+        flag = True
+    if 'ddim_1_tf_bak' in setting or 'ddim_2_tf_bak' in setting:
+        flag = True
+    if 'ddim_8_tf_bak' in setting:
+        flag = True
+    if 'ddim_8_bak' in setting:
+        flag = True
+    if 'ddim_4_bak' in setting:
+        flag = True
+    return flag
+
 # -------------------
 # Utility helpers
 # -------------------
@@ -417,7 +441,11 @@ def plot_split(split: str,
         if y.size == 0:
             continue
         x = np.arange(1, len(y) + 1)
-        plt.plot(x, y, label=setting)
+        if 'ddim' in setting and 'bak' not in setting:
+            linestyle='--'
+        else:
+            linestyle='-'
+        plt.plot(x, y, label=setting, linestyle=linestyle)
     if baseline is not None and baseline.size > 0:
         x_b = np.arange(1, len(baseline) + 1)
         plt.plot(x_b, baseline, linestyle="--", linewidth=2.0, label="baseline (GT runs)")
@@ -426,6 +454,7 @@ def plot_split(split: str,
     plt.ylabel(y_label)
     plt.grid(True, alpha=0.3)
     plt.legend(loc="upper right", fontsize=9)
+    plt.xlim(0, 100)
     plt.tight_layout()
     os.makedirs(os.path.dirname(out_png), exist_ok=True)
     plt.savefig(out_png, dpi=200)
@@ -445,7 +474,11 @@ def plot_split_challenging_window(split: str,
         if y.size == 0:
             continue
         x = np.arange(1, len(y) + 1)
-        plt.plot(x, y, label=setting)
+        if 'ddim' in setting and 'bak' not in setting:
+            linestyle='--'
+        else:
+            linestyle='-'
+        plt.plot(x, y, label=setting, linestyle=linestyle)
     if baseline is not None and baseline.size > 0:
         x_b = np.arange(1, len(baseline) + 1)
         plt.plot(x_b, baseline, linestyle="--", linewidth=2.0, label="baseline (GT runs)")
@@ -503,7 +536,9 @@ def main():
         # ---------- Overall (frame-indexed) ----------
         split_curves: Dict[str, np.ndarray] = {}
         for setting in settings:
-            if 'ddim_4' in setting or 'ddim_8' in setting:
+            #if 'ddim_4' in setting or 'ddim_8' in setting:
+            #    continue
+            if filter_condition(setting):
                 continue
             cum_mean, _ = accumulate_curves(
                 args.gen_root, args.gt_root, split, setting,
@@ -532,7 +567,9 @@ def main():
             # BEST (min) within window → keep old filename
             split_chal_curves_best: Dict[str, np.ndarray] = {}
             for setting in settings:
-                if 'ddim_4' in setting or 'ddim_8' in setting:
+                #if 'ddim_4' in setting or 'ddim_8' in setting:
+                #    continue
+                if filter_condition(setting):
                     continue
                 chal_cum = accumulate_challenging_curves_window(
                     args.gen_root, args.gt_root, split, setting,
@@ -570,7 +607,9 @@ def main():
             # MEAN within window → new filename with _mean suffix
             split_chal_curves_mean: Dict[str, np.ndarray] = {}
             for setting in settings:
-                if 'ddim_4' in setting or 'ddim_8' in setting:
+                #if 'ddim_4' in setting or 'ddim_8' in setting:
+                #    continue
+                if filter_condition(setting):
                     continue
                 chal_cum = accumulate_challenging_curves_window(
                     args.gen_root, args.gt_root, split, setting,
