@@ -173,7 +173,7 @@ def step_model(
         sampler = DDIMSampler(model)
         sample_latent, _ = sampler.sample(
             S=steps, conditioning={'c_concat': out_from_rnn},
-            ddim_discr_method=ddim_discr_method,
+            ddim_discretize=ddim_discr_method,
             batch_size=1, shape=latent_dims, verbose=False
         )
 

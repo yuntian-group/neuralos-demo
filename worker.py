@@ -65,6 +65,7 @@ class GPUWorker:
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n222-138k"
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n222-146k"
         self.MODEL_NAME = "yuntian-deng/computer-model-s-origunet-nospatial-online-x0-joint-onlineonly-222222k722n2222-074k"
+        self.MODEL_NAME = "yuntian-deng/computer-model-test_scheduled_samplingk2-052k"
         
         # Initialize model
         self._initialize_model()
@@ -99,7 +100,7 @@ class GPUWorker:
         
         # Initialize model based on model name
         if True or 'origunet' in self.MODEL_NAME:
-            if 'x0' in self.MODEL_NAME:
+            if True or 'x0' in self.MODEL_NAME:
                 if 'ddpm32' in self.MODEL_NAME:
                     self.TIMESTEPS = 32
                     self.model = initialize_model("config_final_model_origunet_nospatial_x0_ddpm32.yaml", self.MODEL_NAME)
@@ -327,11 +328,14 @@ class GPUWorker:
                     t = torch.full((1,), self.TIMESTEPS-1, device=self.device, dtype=torch.long)
                     sample_latent = self.model.apply_model(x, t, {'c_concat': output_from_rnn})
                 else:
+                    ddim_discretize = 'uniform'
+                    #ddim_discretize = 'logsnr_uniform'
                     sampler = DDIMSampler(self.model)
                     sample_latent, _ = sampler.sample(
                         S=num_sampling_steps,
                         conditioning={'c_concat': output_from_rnn},
                         batch_size=1,
+                        ddim_discretize=ddim_discretize,
                         shape=self.LATENT_DIMS,
                         verbose=False
                     )
