@@ -434,109 +434,106 @@ def process_session_file(log_file, clean_state):
                     frame_h, frame_w = first_frame_rgb.shape[0], first_frame_rgb.shape[1]
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                     doom_writer = None
-                    try:
-                        doom_writer = cv2.VideoWriter(doom_video_file, fourcc, fps, (frame_w, frame_h))
-                        down_keys = set([])
-                        for image_num in range(int(fps*duration)):
-                            action_row = mouse_data.iloc[image_num]
-                            x = int(action_row['X'])
-                            y = int(action_row['Y'])
-                            left_click = True if action_row['Left Click'] == 1 else False
-                            right_click = True if action_row['Right Click'] == 1 else False
-                            key_events = ast.literal_eval(action_row['Key Events'])
-                            for key_state, key in key_events:
-                                if key_state == "keydown":
-                                    down_keys.add(key)
-                                elif key_state == "keyup":
-                                    down_keys.remove(key)
-                                else:
-                                    raise ValueError(f"Unknown key event type: {key_state}")
-                            mapping_dict[(record_num, image_num)] = (x, y, left_click, right_click, list(down_keys))
-                            target_data.append((record_num, image_num))
-                            # Read frame (RGB), convert to BGR for processing
-                            frame_rgb = video.get_frame(image_num / fps)
-                            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                            # If this is the desktop frame, overlay the doom icon (highlight if cursor overlaps)
-                            if is_desktop_frame(frame_bgr, _DESKTOP_REF_BGR):
-                                frame_bgr_mod = overlay_doom_icon_on_frame(frame_bgr)
+                    doom_writer = cv2.VideoWriter(doom_video_file, fourcc, fps, (frame_w, frame_h))
+                    down_keys = set([])
+                    for image_num in range(int(fps*duration)):
+                        action_row = mouse_data.iloc[image_num]
+                        x = int(action_row['X'])
+                        y = int(action_row['Y'])
+                        left_click = True if action_row['Left Click'] == 1 else False
+                        right_click = True if action_row['Right Click'] == 1 else False
+                        key_events = ast.literal_eval(action_row['Key Events'])
+                        for key_state, key in key_events:
+                            if key_state == "keydown":
+                                down_keys.add(key)
+                            elif key_state == "keyup":
+                                down_keys.remove(key)
                             else:
-                                frame_bgr_mod = frame_bgr
-                            # Write to doom video
-                            doom_writer.write(frame_bgr_mod)
-                            # Use modified frame for encoding; convert back to RGB
-                            frame = cv2.cvtColor(frame_bgr_mod, cv2.COLOR_BGR2RGB)
+                                raise ValueError(f"Unknown key event type: {key_state}")
+                        mapping_dict[(record_num, image_num)] = (x, y, left_click, right_click, list(down_keys))
+                        target_data.append((record_num, image_num))
+                        # Read frame (RGB), convert to BGR for processing
+                        frame_rgb = video.get_frame(image_num / fps)
+                        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                        # If this is the desktop frame, overlay the doom icon (highlight if cursor overlaps)
+                        if is_desktop_frame(frame_bgr, _DESKTOP_REF_BGR):
+                            frame_bgr_mod = overlay_doom_icon_on_frame(frame_bgr)
+                        else:
+                            frame_bgr_mod = frame_bgr
+                        # Write to doom video
+                        doom_writer.write(frame_bgr_mod)
+                        # Use modified frame for encoding; convert back to RGB
+                        frame = cv2.cvtColor(frame_bgr_mod, cv2.COLOR_BGR2RGB)
 
-                            # Normalize to [-1, 1]
-                            image_array = (frame / 127.5 - 1.0).astype(np.float32)
+                        # Normalize to [-1, 1]
+                        image_array = (frame / 127.5 - 1.0).astype(np.float32)
 
-                            # Convert to torch tensor
-                            images_tensor = torch.tensor(image_array).unsqueeze(0)
-                            images_tensor = rearrange(images_tensor, 'b h w c -> b c h w')
+                        # Convert to torch tensor
+                        images_tensor = torch.tensor(image_array).unsqueeze(0)
+                        images_tensor = rearrange(images_tensor, 'b h w c -> b c h w')
 
-                            # Move to device for inference
-                            images_tensor = images_tensor.to(device)
+                        # Move to device for inference
+                        images_tensor = images_tensor.to(device)
 
-                            # Encode images
-                            posterior = autoencoder.encode(images_tensor)
-                            latents = posterior.sample()  # Sample from the posterior
+                        # Encode images
+                        posterior = autoencoder.encode(images_tensor)
+                        latents = posterior.sample()  # Sample from the posterior
 
-                            # Move back to CPU for saving
-                            latents = latents.cpu()
+                        # Move back to CPU for saving
+                        latents = latents.cpu()
 
-                            # Save each latent to the tar file
-                            latent = latents[0]
-                            keys = [str(image_num)]
-                            key = keys[0]
-                            
-                            # Convert latent to bytes
-                            latent_bytes = io.BytesIO()
-                            np.save(latent_bytes, latent.numpy())
-                            latent_bytes.seek(0)
+                        # Save each latent to the tar file
+                        latent = latents[0]
+                        keys = [str(image_num)]
+                        key = keys[0]
+                        
+                        # Convert latent to bytes
+                        latent_bytes = io.BytesIO()
+                        np.save(latent_bytes, latent.numpy())
+                        latent_bytes.seek(0)
 
-                            # Write to tar
-                            sample = {
-                                "__key__": key,
-                                "npy": latent_bytes.getvalue(),
-                            }
-                            sink.write(sample)
-                            debug = False
-                            # Debug first batch if requested
-                            if debug:
-                                debug_dir = os.path.join(OUTPUT_DIR, 'debug')
-                                os.makedirs(debug_dir, exist_ok=True)
+                        # Write to tar
+                        sample = {
+                            "__key__": key,
+                            "npy": latent_bytes.getvalue(),
+                        }
+                        sink.write(sample)
+                        debug = False
+                        # Debug first batch if requested
+                        if debug:
+                            debug_dir = os.path.join(OUTPUT_DIR, 'debug')
+                            os.makedirs(debug_dir, exist_ok=True)
 
-                                # Decode latents back to images
-                                reconstructions = autoencoder.decode(latents.to(device))
+                            # Decode latents back to images
+                            reconstructions = autoencoder.decode(latents.to(device))
 
-                                # Save original and reconstructed images side by side
-                                for idx, (orig, recon) in enumerate(zip(images_tensor, reconstructions)):
-                                    # Convert to numpy and move to CPU
-                                    orig = orig.cpu().numpy()
-                                    recon = recon.cpu().numpy()
+                            # Save original and reconstructed images side by side
+                            for idx, (orig, recon) in enumerate(zip(images_tensor, reconstructions)):
+                                # Convert to numpy and move to CPU
+                                orig = orig.cpu().numpy()
+                                recon = recon.cpu().numpy()
 
-                                    # Denormalize from [-1,1] to [0,255]
-                                    orig = (orig + 1.0) * 127.5
-                                    recon = (recon + 1.0) * 127.5
+                                # Denormalize from [-1,1] to [0,255]
+                                orig = (orig + 1.0) * 127.5
+                                recon = (recon + 1.0) * 127.5
 
-                                    # Clip values to valid range
-                                    orig = np.clip(orig, 0, 255).astype(np.uint8)
-                                    recon = np.clip(recon, 0, 255).astype(np.uint8)
+                                # Clip values to valid range
+                                orig = np.clip(orig, 0, 255).astype(np.uint8)
+                                recon = np.clip(recon, 0, 255).astype(np.uint8)
 
-                                    # Rearrange from CHW to HWC
-                                    orig = np.transpose(orig, (1,2,0))
-                                    recon = np.transpose(recon, (1,2,0))
+                                # Rearrange from CHW to HWC
+                                orig = np.transpose(orig, (1,2,0))
+                                recon = np.transpose(recon, (1,2,0))
 
-                                    # Create side-by-side comparison
-                                    comparison = np.concatenate([orig, recon], axis=1)
+                                # Create side-by-side comparison
+                                comparison = np.concatenate([orig, recon], axis=1)
 
-                                    # Save comparison image
-                                    Image.fromarray(comparison).save(
-                                        os.path.join(debug_dir, f'debug_{image_num}_{idx}_{keys[idx]}.png')
-                                    )
-                                print(f"\nDebug visualizations saved to {debug_dir}")
-                finally:
-                    if doom_writer is not None:
-                        doom_writer.release()
+                                # Save comparison image
+                                Image.fromarray(comparison).save(
+                                    os.path.join(debug_dir, f'debug_{image_num}_{idx}_{keys[idx]}.png')
+                                )
+                            print(f"\nDebug visualizations saved to {debug_dir}")
+                    doom_writer.release()
                 sink.close()
                 # merge with existing mapping_dict if exists, otherwise create new one
                 if os.path.exists(os.path.join(OUTPUT_DIR, 'image_action_mapping_with_key_states.pkl')):
