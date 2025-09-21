@@ -274,11 +274,46 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tupl
     game.set_screen_format(vzd.ScreenFormat.RGB24)
     game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
     game.set_window_visible(False)
+    # Fixed, hardcoded order of buttons for stability (no duplicates)
     buttons_order = [
-        *[KEY_TO_BUTTON[k] for k in KEY_TO_BUTTON],
+        # movement
+        vzd.Button.MOVE_FORWARD,
+        vzd.Button.MOVE_BACKWARD,
+        vzd.Button.MOVE_LEFT,
+        vzd.Button.MOVE_RIGHT,
+        # turning
+        #vzd.Button.TURN_LEFT,
+        #vzd.Button.TURN_RIGHT,
+        # modifiers
+        vzd.Button.STRAFE,
+        vzd.Button.SPEED,
+        # actions
+        vzd.Button.JUMP,
+        vzd.Button.CROUCH,
+        vzd.Button.USE,
+        vzd.Button.RELOAD,
+        vzd.Button.SELECT_PREV_WEAPON,
+        vzd.Button.SELECT_NEXT_WEAPON,
+        vzd.Button.ZOOM,
+        # weapon quick-selects
+        vzd.Button.SELECT_WEAPON1,
+        vzd.Button.SELECT_WEAPON2,
+        vzd.Button.SELECT_WEAPON3,
+        vzd.Button.SELECT_WEAPON4,
+        vzd.Button.SELECT_WEAPON5,
+        vzd.Button.SELECT_WEAPON6,
+        vzd.Button.SELECT_WEAPON7,
+        # attack
+        vzd.Button.ATTACK,
+        # continuous deltas appended once at the end
         vzd.Button.TURN_LEFT_RIGHT_DELTA,
         vzd.Button.LOOK_UP_DOWN_DELTA,
     ]
+    # Validate: every mapped button must be in buttons_order
+    required_buttons = {btn for btn in KEY_TO_BUTTON.values() if btn is not None}
+    missing = [btn for btn in required_buttons if btn not in buttons_order]
+    if len(missing) > 0:
+        assert False, f"Some mapped buttons are missing from fixed buttons order: {missing}"
     game.set_available_buttons(buttons_order)
     game.set_episode_timeout(10_000_000)
     game.init()
