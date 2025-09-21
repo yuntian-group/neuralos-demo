@@ -598,7 +598,7 @@ def _render_slice_and_check_desktop(sub_traj_slice: List[Dict[str, Any]], check_
             assert False, 'should not happen that f1 < 0 or f2 < f1'
         with VideoFileClip(video_file) as video:
             fps = video.fps
-            total_frames = int(fps * video.duration)
+            total_frames = int(round(fps * video.duration))
             # Basic sanity: generated frames should match number of formatted events
             assert total_frames == len(formatted), 'video frames should match formatted events'
             for fi in range(f1, f2 + 1):
@@ -763,7 +763,7 @@ def process_session_file(log_file, clean_state):
             try:
                 video = VideoFileClip(video_file)
                 normal_mouse_df = pd.read_csv(action_file)
-                total_normal_frames = int(video.fps * video.duration)
+                total_normal_frames = int(round(video.fps * video.duration))
                 #import pdb; pdb.set_trace()
                 assert total_normal_frames == len(normal_mouse_df), 'should not happen that total_normal_frames does not match len(normal_mouse_df)'
                 assert total_normal_frames == len(formatted_events), 'should not happen that total_normal_frames does not match len(formatted_events)'
