@@ -317,6 +317,14 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tupl
         assert False, f"Some mapped buttons are missing from fixed buttons order: {missing}"
     game.set_available_buttons(buttons_order)
     game.set_episode_timeout(10_000_000)
+    # Make visuals closer to classic Doom experience
+    game.set_render_hud(True)
+    game.set_render_crosshair(True)
+    game.set_render_weapon(True)
+    game.set_render_messages(True)
+    game.set_render_decals(True)
+    game.set_render_particles(True)
+    game.set_render_corpses(True)
     game.init()
     game.new_episode()
     held_keys = set()
