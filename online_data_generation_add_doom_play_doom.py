@@ -3,6 +3,7 @@ import os
 import json
 import glob
 import time
+import random
 import sqlite3
 import logging
 import cv2
@@ -538,6 +539,119 @@ def build_action_seq_for_doom(traj_slice: List[Dict[str, Any]]) -> List[Tuple[Tu
         seq.append(((x, y), left_click, right_click, key_event))
     return seq
 
+def _count_non_control_up_to(traj: List[Dict[str, Any]], idx_inclusive: int) -> int:
+    cnt = 0
+    for j in range(0, idx_inclusive + 1):
+        e = traj[j]
+        if e.get("is_reset") or e.get("is_eos"):
+            continue
+        cnt += 1
+    return cnt
+
+def _find_first_double_click_pair(sub_traj: List[Dict[str, Any]], start_idx: int, max_gap_frames: int = 3) -> Tuple[int, int] or None:
+    last_click_idx = None
+    i = start_idx
+    n = len(sub_traj)
+    while i < n:
+        e = sub_traj[i]
+        if e.get("is_reset") or e.get("is_eos"):
+            i += 1
+            continue
+        inputs = e.get("inputs", {})
+        x = inputs.get("x")
+        y = inputs.get("y")
+        left = bool(inputs.get("is_left_click", False))
+        if left and _inside_icon(x, y):
+            if last_click_idx is not None and (i - last_click_idx) <= max_gap_frames:
+                return (last_click_idx, i)
+            else:
+                last_click_idx = i
+        i += 1
+    return None
+
+def _render_slice_and_check_desktop(sub_traj_slice: List[Dict[str, Any]], check_start_idx: int, check_end_idx: int, clean_state) -> bool:
+    """Render the given sub-traj slice (up to second click) with docker and verify frames between indexes are desktop.
+    check_start_idx/check_end_idx refer to indices within sub_traj_slice (which is prefix up to second click).
+    """
+    # Format events
+    formatted = format_trajectory_for_processing(sub_traj_slice)
+    if len(formatted) == 0:
+        return False
+    # Temp record id
+    temp_id = int(time.time() * 1000) + random.randint(0, 1000)
+    try:
+        args = (temp_id, formatted)
+        process_trajectory(args, SCREEN_WIDTH, SCREEN_HEIGHT, clean_state, MEMORY_LIMIT)
+        video_file = f'raw_data/raw_data/videos/record_{temp_id}.mp4'
+        # Map entry indices to frame indices
+        f1 = _count_non_control_up_to(sub_traj_slice, check_start_idx) - 1
+        f2 = _count_non_control_up_to(sub_traj_slice, check_end_idx) - 1
+        if f1 < 0 or f2 < f1:
+            assert False, 'should not happen that f1 < 0 or f2 < f1'
+        with VideoFileClip(video_file) as video:
+            fps = video.fps
+            total_frames = int(fps * video.duration)
+            # Basic sanity: generated frames should match number of formatted events
+            assert total_frames == len(formatted), 'video frames should match formatted events'
+            for fi in range(f1, f2 + 1):
+                frame_rgb = video.get_frame(fi / fps)
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                if not is_desktop_frame(frame_bgr, _DESKTOP_REF_BGR):
+                    return False
+        return True
+    finally:
+        # Clean temp outputs to avoid interference
+        try:
+            os.remove(f'raw_data/raw_data/videos/record_{temp_id}.mp4')
+        except Exception:
+            pass
+        try:
+            os.remove(f'raw_data/raw_data/actions/record_{temp_id}.csv')
+        except Exception:
+            pass
+
+def find_doom_regions_on_desktop(sub_traj: List[Dict[str, Any]], clean_state, max_gap_frames: int = 3) -> List[Tuple[int, int]]:
+    """Iteratively validate doom double-clicks by re-rendering with docker and checking desktop frames between clicks.
+    Returns validated (start_idx, end_idx) pairs in original sub_traj index space.
+    """
+    validated: List[Tuple[int, int]] = []
+    base_offset = 0
+    remaining = list(sub_traj)
+    scan_start = 0
+    while True:
+        pair = _find_first_double_click_pair(remaining, scan_start, max_gap_frames=max_gap_frames)
+        if pair is None:
+            break
+        i1, i2 = pair
+        # Render prefix up to second click and verify desktop frames
+        prefix_slice = remaining[:i2 + 1]
+        if _render_slice_and_check_desktop(prefix_slice, i1, i2, clean_state):
+            # Valid doom double-click; find ensuing ESC in remaining
+            end_idx = None
+            j = i2
+            while j < len(remaining):
+                ej = remaining[j]
+                if ej.get("is_reset") or ej.get("is_eos"):
+                    j += 1
+                    continue
+                keys_down = [k.lower() for k in ej.get("inputs", {}).get("keys_down", [])]
+                if ("esc" in keys_down) or ("escape" in keys_down):
+                    end_idx = j
+                    break
+                j += 1
+            if end_idx is None:
+                end_idx = len(remaining) - 1
+            # Record region in original indices
+            validated.append((base_offset + i1, base_offset + end_idx))
+            # Remove region (everything up to and including end_idx) and continue
+            base_offset += end_idx + 1
+            remaining = remaining[end_idx + 1:]
+            scan_start = 0
+        else:
+            # Not valid; continue searching after second click
+            scan_start = i2 + 1
+    return validated
+
 @torch.no_grad()
 def process_session_file(log_file, clean_state):
     """Process a session file, splitting into multiple trajectories at reset points."""
@@ -589,8 +703,8 @@ def process_session_file(log_file, clean_state):
             # Get the next ID for this sub-trajectory
             cursor.execute("SELECT value FROM config WHERE key = 'next_id'")
             next_id = int(cursor.fetchone()[0])
-            # Identify doom regions
-            doom_regions = find_doom_regions(sub_traj, max_gap_frames=3)
+            # Identify doom regions and validate on desktop via docker re-rendering
+            doom_regions = find_doom_regions_on_desktop(sub_traj, clean_state, max_gap_frames=3)
             # Build spans (type, start, end) inclusive
             spans: List[Tuple[str, int, int]] = []
             cur = 0
