@@ -282,8 +282,8 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tupl
         vzd.Button.MOVE_LEFT,
         vzd.Button.MOVE_RIGHT,
         # turning
-        #vzd.Button.TURN_LEFT,
-        #vzd.Button.TURN_RIGHT,
+        vzd.Button.TURN_LEFT,
+        vzd.Button.TURN_RIGHT,
         # modifiers
         vzd.Button.STRAFE,
         vzd.Button.SPEED,
