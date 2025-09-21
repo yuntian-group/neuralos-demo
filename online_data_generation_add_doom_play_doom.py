@@ -589,12 +589,15 @@ def process_session_file(log_file, clean_state):
             action_file = f'raw_data/raw_data/actions/record_{record_num}.csv'
             # Combined output writer (doom + normal, in chronological order)
             doom_combined_file = f'raw_data/raw_data/videos/record_{record_num}_doom.mp4'
+            doom_action_file = f'raw_data/raw_data/actions/record_{record_num}_doom.csv'
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            doom_writer = cv2.VideoWriter(doom_combined_file, fourcc, 15, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            combined_fps = 15
+            doom_writer = cv2.VideoWriter(doom_combined_file, fourcc, combined_fps, (SCREEN_WIDTH, SCREEN_HEIGHT))
             sink = wds.TarWriter(os.path.join(OUTPUT_DIR, f'record_{record_num}.tar'))
             # Map and targets
             mapping_dict: Dict[Tuple[int, int], Tuple[int, int, bool, bool, List[str]]] = {}
             target_data: List[Tuple[int, int]] = []
+            doom_rows: List[Dict[str, Any]] = []
             image_num_global = 0
             # Prepare reading normal video frames sequentially
             normal_frame_iter = None
@@ -604,7 +607,7 @@ def process_session_file(log_file, clean_state):
                 video = VideoFileClip(video_file)
                 normal_mouse_df = pd.read_csv(action_file)
                 total_normal_frames = int(video.fps * video.duration)
-                import pdb; pdb.set_trace()
+                #import pdb; pdb.set_trace()
                 assert total_normal_frames == len(normal_mouse_df), 'should not happen that total_normal_frames does not match len(normal_mouse_df)'
                 assert total_normal_frames == len(formatted_events), 'should not happen that total_normal_frames does not match len(formatted_events)'
                 # generator over frames
@@ -666,6 +669,25 @@ def process_session_file(log_file, clean_state):
                                             down_keys.remove(kname)
                             mapping_dict[(record_num, image_num_global)] = (x, y, left_click, right_click, list(down_keys))
                             target_data.append((record_num, image_num_global))
+                            # Collect doom CSV row (normal span)
+                            ts = image_num_global / float(combined_fps)
+                            # Construct key events list for this tick from inputs
+                            key_events_list = []
+                            kd = inputs.get("keys_down", []) or []
+                            ku = inputs.get("keys_up", []) or []
+                            for kk in kd:
+                                key_events_list.append(("keydown", str(kk)))
+                            for kk in ku:
+                                key_events_list.append(("keyup", str(kk)))
+                            doom_rows.append({
+                                'Timestamp': ts,
+                                'Timestamp_formated': f"0:{int(round(ts*1000))}",
+                                'X': x,
+                                'Y': y,
+                                'Left Click': bool(left_click),
+                                'Right Click': bool(right_click),
+                                'Key Events': str(key_events_list),
+                            })
                             image_num_global += 1
                     else:
                         # Doom span: simulate via VizDoom
@@ -675,7 +697,7 @@ def process_session_file(log_file, clean_state):
                         except Exception as e:
                             logger.error(f"Error running VizDoom segment: {e}")
                             doom_frames_rgb = []
-                        import pdb; pdb.set_trace()
+                        #import pdb; pdb.set_trace()
                         assert len(doom_frames_rgb) == len(seg_entries), 'should not happen that doom frames are missing'
                         for idx_local, entry in enumerate(seg_entries):
                             if idx_local < len(doom_frames_rgb):
@@ -717,6 +739,25 @@ def process_session_file(log_file, clean_state):
                                             down_keys.remove(kname)
                             mapping_dict[(record_num, image_num_global)] = (x, y, left_click, right_click, list(down_keys))
                             target_data.append((record_num, image_num_global))
+                            # Collect doom CSV row (doom span)
+                            ts = image_num_global / float(combined_fps)
+                            # Construct key events list for this tick
+                            key_events_list = []
+                            kd = inputs.get("keys_down", []) or []
+                            ku = inputs.get("keys_up", []) or []
+                            for kk in kd:
+                                key_events_list.append(("keydown", str(kk)))
+                            for kk in ku:
+                                key_events_list.append(("keyup", str(kk)))
+                            doom_rows.append({
+                                'Timestamp': ts,
+                                'Timestamp_formated': f"0:{int(round(ts*1000))}",
+                                'X': x,
+                                'Y': y,
+                                'Left Click': bool(left_click),
+                                'Right Click': bool(right_click),
+                                'Key Events': str(key_events_list),
+                            })
                             image_num_global += 1
             finally:
                 doom_writer.release()
@@ -729,6 +770,15 @@ def process_session_file(log_file, clean_state):
                     sink.close()
                 except Exception:
                     pass
+            # Save combined actions CSV for _doom stream
+            os.makedirs(os.path.dirname(doom_action_file), exist_ok=True)
+            df = pd.DataFrame(doom_rows, columns=[
+                'Timestamp','Timestamp_formated','X','Y','Left Click','Right Click','Key Events'
+            ])
+            # atomic write
+            tmp_csv = doom_action_file + ".temp"
+            df.to_csv(tmp_csv, index=False)
+            os.replace(tmp_csv, doom_action_file)
             # Save mapping dict (merge if exists)
             if os.path.exists(os.path.join(OUTPUT_DIR, 'image_action_mapping_with_key_states.pkl')):
                 with open(os.path.join(OUTPUT_DIR, 'image_action_mapping_with_key_states.pkl'), 'rb') as f:
