@@ -299,16 +299,20 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tupl
         action_vec = build_action_vector(buttons_order, held_keys, bool(left_click), dx, dy)
         _reward = game.make_action(action_vec, fps_skip)
         done = game.is_episode_finished()
-        if done:
+        num_restarts = 0
+        while done:
+            # Restart episode and re-issue the same action so this tick still yields a frame
             game.new_episode()
-            abs2delta.reset()
-            continue
+            _reward = game.make_action(action_vec, fps_skip)
+            done = game.is_episode_finished()
+            num_restarts += 1
+            assert num_restarts < 10, 'should not happen that we restart more than 10 times'
         state = game.get_state()
         if state is None or state.screen_buffer is None:
-            continue
+            assert False, 'should not happen that state is None or state.screen_buffer is None'
         rgb = chw_to_hwc_rgb(state.screen_buffer)
         if rgb is None or rgb.size == 0:
-            continue
+            assert False, 'should not happen that rgb is None or rgb.size == 0'
         resized = cv2.resize(rgb, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_AREA)
         frames.append(resized)
     game.close()
@@ -600,6 +604,9 @@ def process_session_file(log_file, clean_state):
                 video = VideoFileClip(video_file)
                 normal_mouse_df = pd.read_csv(action_file)
                 total_normal_frames = int(video.fps * video.duration)
+                import pdb; pdb.set_trace()
+                assert total_normal_frames == len(normal_mouse_df), 'should not happen that total_normal_frames does not match len(normal_mouse_df)'
+                assert total_normal_frames == len(formatted_events), 'should not happen that total_normal_frames does not match len(formatted_events)'
                 # generator over frames
                 def _frame_gen():
                     for j in range(total_normal_frames):
@@ -668,6 +675,8 @@ def process_session_file(log_file, clean_state):
                         except Exception as e:
                             logger.error(f"Error running VizDoom segment: {e}")
                             doom_frames_rgb = []
+                        import pdb; pdb.set_trace()
+                        assert len(doom_frames_rgb) == len(seg_entries), 'should not happen that doom frames are missing'
                         for idx_local, entry in enumerate(seg_entries):
                             if idx_local < len(doom_frames_rgb):
                                 frame_rgb = doom_frames_rgb[idx_local]
