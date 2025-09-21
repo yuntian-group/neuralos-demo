@@ -122,22 +122,35 @@ _DOOM_ICON_HL.paste(bright_top, (0, 0))
 
 # Doom control mapping used by VizDoom runner
 def norm_key(k: str) -> str:
-    return (k or '').strip().upper()
+    return k.strip().lower()
 
 KEY_TO_BUTTON = {
-    "W": vzd.Button.MOVE_FORWARD,
-    "S": vzd.Button.MOVE_BACKWARD,
-    "A": vzd.Button.MOVE_LEFT,
-    "D": vzd.Button.MOVE_RIGHT,
-    "ALT":   vzd.Button.STRAFE,
-    "SHIFT": vzd.Button.SPEED,
-    "SPACE": vzd.Button.JUMP,
-    "CTRL":  vzd.Button.CROUCH,
-    "E":     vzd.Button.USE,
-    "F":     vzd.Button.RELOAD,
-    "Q":     vzd.Button.SELECT_PREV_WEAPON,
-    "R":     vzd.Button.SELECT_NEXT_WEAPON,
-    "Z":     vzd.Button.ZOOM,
+    "w": vzd.Button.MOVE_FORWARD,
+    "s": vzd.Button.MOVE_BACKWARD,
+    "a": vzd.Button.MOVE_LEFT,
+    "d": vzd.Button.MOVE_RIGHT,
+
+    # classic DOOM: arrow up/down move, left/right turn
+    "up": vzd.Button.MOVE_FORWARD,
+    "down": vzd.Button.MOVE_BACKWARD,
+    "left": vzd.Button.TURN_LEFT,
+    "right": vzd.Button.TURN_RIGHT,
+
+    # strafe modifier + run modifier
+    "alt":   vzd.Button.STRAFE,
+    "shift": vzd.Button.SPEED,
+
+    # actions
+    "space": vzd.Button.JUMP,
+    " ": vzd.Button.JUMP,
+    "ctrl":  vzd.Button.CROUCH,
+    "e":     vzd.Button.USE,
+    "f":     vzd.Button.RELOAD,
+    "q":     vzd.Button.SELECT_PREV_WEAPON,
+    "r":     vzd.Button.SELECT_NEXT_WEAPON,
+    "z":     vzd.Button.ZOOM,
+
+    # weapon quick-select (top number row)
     "1": vzd.Button.SELECT_WEAPON1,
     "2": vzd.Button.SELECT_WEAPON2,
     "3": vzd.Button.SELECT_WEAPON3,
@@ -145,9 +158,11 @@ KEY_TO_BUTTON = {
     "5": vzd.Button.SELECT_WEAPON5,
     "6": vzd.Button.SELECT_WEAPON6,
     "7": vzd.Button.SELECT_WEAPON7,
-    "ENTER": vzd.Button.ATTACK,
+
+    # optional extras
+    "enter": vzd.Button.ATTACK,
 }
-MOUSE_LEFT = "MOUSE1"
+MOUSE_LEFT = "mouse1"
 
 KEY_TO_BUTTON[MOUSE_LEFT]  = vzd.Button.ATTACK
 
@@ -411,7 +426,6 @@ def _inside_icon(x: int, y: int) -> bool:
 def find_doom_regions(sub_traj: List[Dict[str, Any]], max_gap_frames: int = 3) -> List[Tuple[int, int]]:
     regions: List[Tuple[int, int]] = []
     last_click_idx = None
-    prev_left = False
     i = 0
     while i < len(sub_traj):
         e = sub_traj[i]
@@ -422,10 +436,7 @@ def find_doom_regions(sub_traj: List[Dict[str, Any]], max_gap_frames: int = 3) -
         x = inputs.get("x")
         y = inputs.get("y")
         left = bool(inputs.get("is_left_click", False))
-        # detect rising edge
-        rising = (not prev_left) and left
-        prev_left = left
-        if rising and _inside_icon(x, y):
+        if left and _inside_icon(x, y):
             if last_click_idx is not None and (i - last_click_idx) <= max_gap_frames:
                 # Double click detected — find first ensuing ESC keydown
                 start_idx = last_click_idx
@@ -444,9 +455,8 @@ def find_doom_regions(sub_traj: List[Dict[str, Any]], max_gap_frames: int = 3) -
                 if end_idx is None:
                     end_idx = len(sub_traj) - 1
                 regions.append((start_idx, end_idx))
-                # Reset click state and advance beyond end
+                # Reset state and jump beyond end of doom region
                 last_click_idx = None
-                prev_left = False
                 i = end_idx + 1
                 continue
             else:
