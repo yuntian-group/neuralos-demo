@@ -44,6 +44,18 @@
             font-weight: bold;
             white-space: nowrap;
         }
+        .instruction-box-bottom {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
         
         #displayCanvas {
             cursor: none;
@@ -95,6 +107,7 @@
             <div class="canvas-wrapper">
                 <div class="instruction-box">Move your mouse inside to interact</div>
                 <canvas id="displayCanvas" width="512" height="384"></canvas>
+                <div class="instruction-box-bottom">Press ESC to exit the game</div>
             </div>
             
             <div class="controls">
