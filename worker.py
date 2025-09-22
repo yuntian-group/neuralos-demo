@@ -70,6 +70,8 @@ class GPUWorker:
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_hover-0250"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_hover-2-1000"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_hover-3-0750"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-02125"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-003625"
         
         # Initialize model
         self._initialize_model()
