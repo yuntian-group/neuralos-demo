@@ -126,12 +126,14 @@ def norm_key(k: str) -> str:
     return k.strip().lower()
 
 KEY_TO_BUTTON = {
-    "w": vzd.Button.MOVE_FORWARD,
-    "s": vzd.Button.MOVE_BACKWARD,
-    "a": vzd.Button.MOVE_LEFT,
-    "d": vzd.Button.MOVE_RIGHT,
+    # movement (classic: arrows move/turn; WASD emulate arrows)
+    # W/A/S/D mapped to classic arrow semantics
+    "w": vzd.Button.MOVE_FORWARD,     # like ArrowUp
+    "s": vzd.Button.MOVE_BACKWARD,    # like ArrowDown
+    "a": vzd.Button.TURN_LEFT,        # like ArrowLeft (turn)
+    "d": vzd.Button.TURN_RIGHT,       # like ArrowRight (turn)
 
-    # classic DOOM: arrow up/down move, left/right turn
+    # classic DOOM arrows: up/down move, left/right turn
     "up": vzd.Button.MOVE_FORWARD,
     "down": vzd.Button.MOVE_BACKWARD,
     "left": vzd.Button.TURN_LEFT,
@@ -141,12 +143,13 @@ KEY_TO_BUTTON = {
     "alt":   vzd.Button.STRAFE,
     "shift": vzd.Button.SPEED,
 
-    # actions
-    "space": vzd.Button.JUMP,
-    " ": vzd.Button.JUMP,
-    "ctrl":  vzd.Button.CROUCH,
-    "e":     vzd.Button.USE,
-    "f":     vzd.Button.RELOAD,
+    # actions (hybrid: classic + modern)
+    "space": vzd.Button.USE,      # open doors/switches
+    " ": vzd.Button.USE,      # open doors/switches
+    "e":     vzd.Button.USE,      # also allow E to use
+    "ctrl":  vzd.Button.ATTACK,   # classic fire
+
+    # optional extras
     "q":     vzd.Button.SELECT_PREV_WEAPON,
     "r":     vzd.Button.SELECT_NEXT_WEAPON,
     "z":     vzd.Button.ZOOM,
@@ -160,7 +163,7 @@ KEY_TO_BUTTON = {
     "6": vzd.Button.SELECT_WEAPON6,
     "7": vzd.Button.SELECT_WEAPON7,
 
-    # optional extras
+    # allow Enter as attack too
     "enter": vzd.Button.ATTACK,
 }
 MOUSE_LEFT = "mouse1"
@@ -254,11 +257,20 @@ class AbsToDelta:
 
 def build_action_vector(buttons_order, held_keys_set, left_click, dx, dy):
     action = [0] * len(buttons_order)
+    # Disable pitch: ignore dy entirely
+    dy = 0
+    # Support classic strafe with ALT: if STRAFE held, treat left/right as MOVE_LEFT/RIGHT in addition to turn buttons
+    strafe_held = ('alt' in held_keys_set and KEY_TO_BUTTON.get('alt') == vzd.Button.STRAFE)
     for i, btn in enumerate(buttons_order):
         if btn == vzd.Button.TURN_LEFT_RIGHT_DELTA:
             action[i] = int(dx)
         elif btn == vzd.Button.LOOK_UP_DOWN_DELTA:
             action[i] = int(dy)
+        elif btn == vzd.Button.MOVE_LEFT and strafe_held:
+            # emulate analog strafe from mouse by mapping dx<0 to move left
+            action[i] = 1 if dx < 0 else 0
+        elif btn == vzd.Button.MOVE_RIGHT and strafe_held:
+            action[i] = 1 if dx > 0 else 0
         elif btn == vzd.Button.ATTACK:
             action[i] = 1 if left_click else 0
         else:
