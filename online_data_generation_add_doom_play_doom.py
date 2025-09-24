@@ -260,6 +260,10 @@ def build_action_vector(buttons_order, held_keys_set, left_click, dx, dy):
     # Support classic strafe with ALT: if STRAFE held, treat left/right as MOVE_LEFT/RIGHT in addition to turn buttons
     strafe_held = ('alt' in held_keys_set and KEY_TO_BUTTON.get('alt') == vzd.Button.STRAFE)
     for i, btn in enumerate(buttons_order):
+        for k in held_keys_set:
+            if KEY_TO_BUTTON.get(k) == btn:
+                action[i] = 1
+                break
         if btn == vzd.Button.TURN_LEFT_RIGHT_DELTA:
             action[i] = int(dx)
         elif btn == vzd.Button.LOOK_UP_DOWN_DELTA:
@@ -274,11 +278,7 @@ def build_action_vector(buttons_order, held_keys_set, left_click, dx, dy):
         elif btn == vzd.Button.ATTACK:
             if left_click:
                 action[i] = 1
-        else:
-            for k in held_keys_set:
-                if KEY_TO_BUTTON.get(k) == btn:
-                    action[i] = 1
-                    break
+            
     return action
 
 def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, List[Tuple[str, str]]]], fps_skip: int = 3) -> List[np.ndarray]:
