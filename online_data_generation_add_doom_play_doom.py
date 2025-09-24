@@ -122,9 +122,7 @@ _DOOM_ICON_HL = _DOOM_ICON.copy()
 _DOOM_ICON_HL.paste(bright_top, (0, 0))
 
 # Doom control mapping used by VizDoom runner
-def norm_key(k: str) -> str:
-    return k.strip().lower()
-
+# Keys are normalized inline: lower() then KEYMAPPING application
 KEY_TO_BUTTON = {
     # movement (classic: arrows move/turn; WASD emulate arrows)
     # W/A/S/D mapped to classic arrow semantics
@@ -280,7 +278,7 @@ def build_action_vector(buttons_order, held_keys_set, left_click, dx, dy):
                     break
     return action
 
-def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tuple[str, str]]], fps_skip: int = 3) -> List[np.ndarray]:
+def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, List[Tuple[str, str]]]], fps_skip: int = 3) -> List[np.ndarray]:
     game = vzd.DoomGame()
     game.set_doom_game_path("doom1.wad")  # ensure this file exists or adjust path
     game.set_doom_map("E1M1")
@@ -343,14 +341,14 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, Tupl
     abs2delta = AbsToDelta()
     frames: List[np.ndarray] = []
     for t, act in enumerate(action_seq):
-        (x, y), left_click, _right_click, key_event = act
-        if key_event is not None:
-            evt_type, key = key_event
-            k = norm_key(key)
-            if evt_type == "key_down":
-                held_keys.add(k)
-            elif evt_type == "key_up":
-                held_keys.discard(k)
+        (x, y), left_click, _right_click, key_events = act
+        # Apply all key events for this tick in order
+        if key_events:
+            for evt_type, key in key_events:
+                if evt_type == "key_down":
+                    held_keys.add(key)
+                elif evt_type == "key_up":
+                    held_keys.discard(key)
         dx, dy = abs2delta(x, y, sens_x=1.0, sens_y=1.0, clamp=80)
         action_vec = build_action_vector(buttons_order, held_keys, bool(left_click), dx, dy)
         _reward = game.make_action(action_vec, fps_skip)
@@ -536,8 +534,9 @@ def find_doom_regions(sub_traj: List[Dict[str, Any]], max_gap_frames: int = 3) -
             merged.append((s, e))
     return merged
 
-def build_action_seq_for_doom(traj_slice: List[Dict[str, Any]]) -> List[Tuple[Tuple[int, int], bool, bool, Tuple[str, str]]]:
-    seq: List[Tuple[Tuple[int, int], bool, bool, Tuple[str, str]]] = []
+def build_action_seq_for_doom(traj_slice: List[Dict[str, Any]]) -> List[Tuple[Tuple[int, int], bool, bool, List[Tuple[str, str]]]]:
+    seq: List[Tuple[Tuple[int, int], bool, bool, List[Tuple[str, str]]]] = []
+    down_keys = set([])
     for entry in traj_slice:
         if entry.get("is_reset") or entry.get("is_eos"):
             continue
@@ -548,15 +547,27 @@ def build_action_seq_for_doom(traj_slice: List[Dict[str, Any]]) -> List[Tuple[Tu
         y = min(max(0, y), SCREEN_HEIGHT - 1) if y is not None else 0
         left_click = bool(inputs.get("is_left_click", False))
         right_click = bool(inputs.get("is_right_click", False))
-        # choose at most one key event per tick prioritizing downs
-        key_event = None
-        kd = inputs.get("keys_down", []) or []
-        ku = inputs.get("keys_up", []) or []
-        if len(kd) > 0:
-            key_event = ("key_down", norm_key(str(kd[0])))
-        elif len(ku) > 0:
-            key_event = ("key_up", norm_key(str(ku[0])))
-        seq.append(((x, y), left_click, right_click, key_event))
+        # collect all key events for this tick (downs then ups) using same logic as regular mode
+        key_events: List[Tuple[str, str]] = []
+        for key in inputs.get("keys_down", []):
+            key = key.lower()
+            if key in KEYMAPPING:
+                key = KEYMAPPING[key]
+            if key not in stoi:
+                continue
+            if key not in down_keys:
+                down_keys.add(key)
+                key_events.append(("key_down", key))
+        for key in inputs.get("keys_up", []):
+            key = key.lower()
+            if key in KEYMAPPING:
+                key = KEYMAPPING[key]
+            if key not in stoi:
+                continue
+            if key in down_keys:
+                down_keys.remove(key)
+                key_events.append(("key_up", key))
+        seq.append(((x, y), left_click, right_click, key_events))
     return seq
 
 def _count_non_control_up_to(traj: List[Dict[str, Any]], idx_inclusive: int) -> int:
