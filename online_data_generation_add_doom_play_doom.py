@@ -266,11 +266,14 @@ def build_action_vector(buttons_order, held_keys_set, left_click, dx, dy):
             action[i] = int(dy)
         elif btn == vzd.Button.MOVE_LEFT and strafe_held:
             # emulate analog strafe from mouse by mapping dx<0 to move left
-            action[i] = 1 if dx < 0 else 0
+            if dx < 0:
+                actino[i] = 1
         elif btn == vzd.Button.MOVE_RIGHT and strafe_held:
-            action[i] = 1 if dx > 0 else 0
+            if dx > 0:
+                action[i] = 1
         elif btn == vzd.Button.ATTACK:
-            action[i] = 1 if left_click else 0
+            if left_click:
+                action[i] = 1
         else:
             for k in held_keys_set:
                 if KEY_TO_BUTTON.get(k) == btn:
