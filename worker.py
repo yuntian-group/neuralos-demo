@@ -77,6 +77,14 @@ class GPUWorker:
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-006250"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-014000"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-012000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix-010000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-008000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-024000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-042000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-062000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-038000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-050000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-076000"
         
         # Initialize model
         self._initialize_model()
