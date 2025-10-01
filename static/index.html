@@ -800,6 +800,11 @@
                     if (!userHasInteracted) {
                         userHasInteracted = true;
                         console.log("User has interacted with canvas for the first time");
+                        // Update instruction text to show controls
+                        const instructionBox = document.querySelector('.instruction-box');
+                        if (instructionBox) {
+                            instructionBox.textContent = "Use WASD, Ctrl. Space to play DOOM";
+                        }
                     }
                     
                     // Update last user input time for auto-input mechanism
