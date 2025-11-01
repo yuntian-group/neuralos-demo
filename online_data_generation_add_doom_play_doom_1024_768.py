@@ -45,18 +45,18 @@ DB_FILE = "trajectory_processor.db"
 FRAMES_DIR = "interaction_logs"
 OUTPUT_DIR = 'train_dataset_encoded_online'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-SCREEN_WIDTH = 512
-SCREEN_HEIGHT = 384
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 768
 MEMORY_LIMIT = "2g"
 CHECK_INTERVAL = 60  # Check for new data every 60 seconds
 
-# Doom icon placement and detection
+# Doom icon placement and detection (keeping original size for realistic desktop behavior)
 DOOM_ICON_WIDTH = 50
 DOOM_ICON_HEIGHT = 70
-DOOM_ICON_OFFSET_X = 45
-DOOM_ICON_POS_X = SCREEN_WIDTH - DOOM_ICON_WIDTH - DOOM_ICON_OFFSET_X  # 417
-DOOM_ICON_POS_Y = 23
-DOOM_ICON_RECT = (DOOM_ICON_POS_X, DOOM_ICON_POS_Y, DOOM_ICON_POS_X + DOOM_ICON_WIDTH, DOOM_ICON_POS_Y + DOOM_ICON_HEIGHT)  # (417,23,467,93)
+DOOM_ICON_OFFSET_X = 90  # 2X of original 45 to maintain proportional spacing from right edge
+DOOM_ICON_POS_X = SCREEN_WIDTH - DOOM_ICON_WIDTH - DOOM_ICON_OFFSET_X  # 884
+DOOM_ICON_POS_Y = 46  # 2X of original 23 to maintain proportional spacing from top edge
+DOOM_ICON_RECT = (DOOM_ICON_POS_X, DOOM_ICON_POS_Y, DOOM_ICON_POS_X + DOOM_ICON_WIDTH, DOOM_ICON_POS_Y + DOOM_ICON_HEIGHT)  # (884,46,934,116)
 
 # load autoencoder
 config = OmegaConf.load('../computer/autoencoder/config_kl4_lr4.5e6_load_acc1_512_384_mar10_keyboard_init_16_contmar15_acc1.yaml')
@@ -172,10 +172,10 @@ KEY_TO_BUTTON[MOUSE_LEFT]  = vzd.Button.ATTACK
 def detect_cursor_in_frame(frame_bgr: np.ndarray, white_thresh: int = 35, min_area: int = 50):
     try:
         H, W = frame_bgr.shape[:2]
-        roi_x = W - 128
+        roi_x = W - 256
         roi_y = 0
-        roi_w = 128
-        roi_h = 128
+        roi_w = 256
+        roi_h = 256
         region = frame_bgr[roi_y:roi_y + roi_h, roi_x:roi_x + roi_w]
         gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
         _, white_bin = cv2.threshold(gray, white_thresh, 255, cv2.THRESH_BINARY)
@@ -286,7 +286,7 @@ def run_vizdoom_segment(action_seq: List[Tuple[Tuple[int, int], bool, bool, List
     game.set_doom_game_path("doom1.wad")  # ensure this file exists or adjust path
     game.set_doom_map("E1M1")
     game.set_screen_format(vzd.ScreenFormat.RGB24)
-    game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
+    game.set_screen_resolution(vzd.ScreenResolution.RES_1024X768)
     game.set_window_visible(False)
     # Fixed, hardcoded order of buttons for stability (no duplicates)
     buttons_order = [
