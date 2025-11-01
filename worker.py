@@ -98,6 +98,21 @@ class GPUWorker:
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-450000"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-466000"
         self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-494000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-548000"
+        #self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-prnn-003500"
+        #self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn-054000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-012000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-030000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-048000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-064000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-084000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-124000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22-130000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22n-080000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22n-104000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22nn-022000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22nn-034000"
+        self.MODEL_NAME = "yuntian-deng/computer-model-adddoom_play-8gpus-classic-fix2-cont-pretrainrnn22nn-060000"
         
         # Initialize model
         self._initialize_model()
